@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoLog — Histórico de Serviços do Veículo</title>
+<style>
+:root {
+  --owner: #2563eb; --owner-lt: #dbeafe; --owner-dk: #1d4ed8;
+  --mech: #059669;  --mech-lt: #d1fae5;  --mech-dk: #047857;
+  --bg: #f1f5f9; --surface: #fff; --border: #e2e8f0;
+  --txt: #1e293b; --muted: #64748b; --danger: #ef4444;
+  --r: 12px; --sh: 0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --sh2: 0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.06);
+  --sh3: 0 10px 15px rgba(0,0,0,.1),0 4px 6px rgba(0,0,0,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;line-height:1.5}
+
+/* ── Header ── */
+header{background:#0f172a;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr{max-width:1440px;margin:0 auto;padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.brand{display:flex;align-items:center;gap:.7rem}
+.logo{width:40px;height:40px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.brand h1{font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+.brand p{font-size:.72rem;color:#94a3b8}
+#activeBadge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:.45rem .9rem;font-size:.82rem;color:#cbd5e1;display:none}
+#activeBadge.show{display:block}
+#activeBadge strong{display:block;color:#fff;font-size:.9rem}
+
+/* ── Layout ── */
+.wrap{max-width:1440px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+@media(max-width:1024px){.wrap{grid-template-columns:1fr}}
+
+/* ── Section labels ── */
+.sec-hdr{display:flex;align-items:center;gap:.7rem;margin-bottom:1.1rem}
+.sec-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.owner-col .sec-icon{background:var(--owner-lt)}
+.mech-col  .sec-icon{background:var(--mech-lt)}
+.sec-hdr h2{font-size:1.05rem;font-weight:700}
+.badge-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;padding:.18rem .55rem;border-radius:4px}
+.owner-col .badge-label{background:var(--owner-lt);color:var(--owner)}
+.mech-col  .badge-label{background:var(--mech-lt);color:var(--mech)}
+
+/* ── Cards ── */
+.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:1.15rem;box-shadow:var(--sh);margin-bottom:1rem}
+.card:last-child{margin-bottom:0}
+.card-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.9rem;display:flex;align-items:center;gap:.45rem}
+
+/* ── Forms ── */
+.fg{margin-bottom:.85rem}.fg:last-child{margin-bottom:0}
+label{display:block;font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;color:var(--txt);background:#fff;transition:border-color .15s,box-shadow .15s;font-family:inherit;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .7rem center;padding-right:2.2rem}
+select:disabled{background-color:#f8fafc;color:#94a3b8;cursor:not-allowed}
+textarea{resize:vertical;min-height:72px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+@media(max-width:480px){.row2{grid-template-columns:1fr}}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;padding:.55rem 1.1rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit;text-decoration:none}
+.btn-primary{background:var(--owner);color:#fff}.btn-primary:hover{background:var(--owner-dk);transform:translateY(-1px);box-shadow:var(--sh2)}
+.btn-success{background:var(--mech);color:#fff}.btn-success:hover{background:var(--mech-dk);transform:translateY(-1px);box-shadow:var(--sh2)}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--txt)}
+.btn-danger{background:#fef2f2;color:var(--danger);border:1.5px solid #fecaca}.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:.32rem .7rem;font-size:.78rem}
+.btn-block{width:100%}
+
+/* ── Cascade selects ── */
+.cascade{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}
+@media(max-width:900px){.cascade{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.cascade{grid-template-columns:1fr}}
+
+/* ── Vehicle list ── */
+.vlist{list-style:none}
+.vitem{display:flex;align-items:center;gap:.7rem;justify-content:space-between;padding:.65rem .8rem;border:1.5px solid var(--border);border-radius:8px;margin-bottom:.45rem;cursor:pointer;transition:all .15s}
+.vphoto{width:56px;height:56px;border-radius:8px;overflow:hidden;flex-shrink:0;cursor:pointer;position:relative;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center}
+.vphoto img{width:100%;height:100%;object-fit:cover}
+.vphoto-placeholder{font-size:1.6rem;line-height:1}
+.vphoto-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:1.1rem;opacity:0;transition:.15s}
+.vphoto:hover .vphoto-overlay{opacity:1}
+.vitem:hover{border-color:var(--owner);background:#eff6ff}
+.vitem.active{border-color:var(--owner);background:var(--owner-lt)}
+.vitem:last-child{margin-bottom:0}
+.vinfo strong{display:block;font-size:.88rem}
+.vinfo span{font-size:.78rem;color:var(--muted)}
+.vactions{display:flex;gap:.35rem;flex-shrink:0}
+
+/* ── Service record ── */
+.srec{border:1.5px solid var(--border);border-radius:10px;margin-bottom:.65rem;overflow:hidden;transition:box-shadow .15s}
+.srec:hover{box-shadow:var(--sh2)}
+.srec:last-child{margin-bottom:0}
+.srec-hdr{display:flex;align-items:center;justify-content:space-between;padding:.65rem .9rem;background:#f8fafc;border-bottom:1px solid var(--border);cursor:pointer;gap:.5rem}
+.srec-hdr:hover{background:#f1f5f9}
+.smeta{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;min-width:0}
+.stype-badge{background:var(--mech-lt);color:var(--mech);font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:4px;white-space:nowrap}
+.sdate{font-size:.84rem;font-weight:600;white-space:nowrap}
+.smile{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.scost{font-weight:700;font-size:.88rem;color:var(--mech);white-space:nowrap}
+.srec-body{padding:.75rem .9rem;display:none}
+.srec-body.open{display:block}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.65rem}
+.di label{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:.15rem}
+.di span{font-size:.85rem;font-weight:500}
+
+/* ── Stats strip ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.9rem}
+.stat{background:var(--bg);border-radius:8px;padding:.55rem;text-align:center}
+.stat-val{font-size:1.2rem;font-weight:800;color:var(--mech)}
+.stat-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+
+/* ── Service type checkboxes ── */
+.stypes{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-bottom:.45rem}
+.stype-chk{display:flex;align-items:center;gap:.38rem;padding:.38rem .5rem;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:.78rem;transition:all .12s;user-select:none}
+.stype-chk:hover{border-color:var(--mech);background:var(--mech-lt)}
+.stype-chk input[type=checkbox]{width:auto;margin:0;accent-color:var(--mech)}
+
+/* ── Dollar prefix ── */
+.pfx{position:relative}
+.pfx::before{content:'$';position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:500;pointer-events:none}
+.pfx input{padding-left:1.65rem}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:1.8rem;color:var(--muted);font-size:.88rem}
+.empty-ico{font-size:2.2rem;margin-bottom:.4rem}
+
+/* ── No vehicle notice ── */
+.no-veh{background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:1.4rem;text-align:center;color:#92400e}
+.no-veh .ico{font-size:1.8rem;margin-bottom:.35rem}
+
+/* ── Divider ── */
+.divider{display:flex;align-items:center;gap:.65rem;margin:1rem 0;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Scrollable list ── */
+.slist{max-height:520px;overflow-y:auto;padding-right:.2rem}
+.slist::-webkit-scrollbar{width:4px}
+.slist::-webkit-scrollbar-track{background:var(--bg);border-radius:2px}
+.slist::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:1rem}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.4rem;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh3)}
+.mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)}
+.mhdr h3{font-size:1.05rem;font-weight:700}
+.mclose{background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted);padding:.2rem .4rem;border-radius:4px;line-height:1}
+.mclose:hover{background:var(--bg)}
+.mfoot{display:flex;gap:.65rem;margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--border)}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:#1e293b;color:#fff;padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;z-index:2000;transition:transform .3s;white-space:nowrap;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+@media print{header{position:static}.btn,.overlay{display:none!important}.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <div class="logo">🔧</div>
+      <div>
+        <h1>AutoLog</h1>
+        <p>Gerenciador de Histórico de Serviços</p>
+      </div>
+    </div>
+    <div id="activeBadge">
+      <strong id="badgeVehicle"></strong>
+      <span id="badgeOwner"></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ══════════════ OWNER SECTION ══════════════ -->
+  <section class="owner-col">
+    <div class="sec-hdr">
+      <div class="sec-icon">🚗</div>
+      <div>
+        <div class="badge-label">Área do Proprietário</div>
+        <h2>Perfil do Veículo</h2>
+      </div>
+    </div>
+
+    <!-- Cascade Selector -->
+    <div class="card">
+      <div class="card-title">🔍 Seletor de Veículo</div>
+      <div class="cascade">
+        <div class="fg">
+          <label for="selMarca">Marca</label>
+          <select id="selMarca" onchange="onMarcaChange()">
+            <option value="">— Selecione a Marca —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label for="selModelo">Modelo</label>
+          <select id="selModelo" disabled onchange="onModeloChange()">
+            <option value="">— Selecione o Modelo —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label for="selEspec">Especificação</label>
+          <select id="selEspec" disabled onchange="onEspecChange()">
+            <option value="">— Selecione a Versão —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label for="selAno">Ano</label>
+          <select id="selAno" disabled>
+            <option value="">— Selecione o Ano —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Owner Info -->
+    <div class="card">
+      <div class="card-title">👤 Informações do Proprietário</div>
+      <div class="row2">
+        <div class="fg"><label>Nome Completo</label><input id="ownerName" type="text" placeholder="João Silva"></div>
+        <div class="fg"><label>Telefone</label><input id="ownerPhone" type="tel" placeholder="(11) 90000-0000"></div>
+      </div>
+      <div class="row2">
+        <div class="fg"><label>Email</label><input id="ownerEmail" type="email" placeholder="joao@exemplo.com"></div>
+        <div class="fg"><label>Chassi / VIN</label><input id="vehicleVin" type="text" placeholder="Chassi 17 dígitos" maxlength="17"></div>
+      </div>
+      <div class="row2">
+        <div class="fg"><label>Placa</label><input id="vehiclePlaca" type="text" placeholder="ABC-1234 ou ABC-1B34" maxlength="8" oninput="formatPlaca(this)" style="text-transform:uppercase"></div>
+        <div class="fg"><label>Quilometragem Atual</label><input id="curMileage" type="number" placeholder="45000" min="0"></div>
+      </div>
+      <div class="fg"><label>Cor</label><input id="vehColor" type="text" placeholder="ex: Branco Pérola"></div>
+      <div style="display:flex;gap:.65rem;margin-top:.9rem">
+        <button class="btn btn-primary" onclick="saveVehicle()">💾 Salvar Veículo</button>
+        <button class="btn btn-ghost" onclick="clearOwnerForm()">✕ Limpar</button>
+      </div>
+    </div>
+
+    <!-- My Vehicles -->
+    <div class="card">
+      <div class="card-title">
+        🚘 Meus Veículos
+        <span id="vehCount" style="margin-left:auto;background:#f1f5f9;border-radius:4px;padding:.1rem .5rem;font-weight:800">0</span>
+      </div>
+      <ul class="vlist" id="vehicleList">
+        <li class="empty"><div class="empty-ico">🚗</div>Nenhum veículo salvo ainda</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══════════════ MECHANIC SECTION ══════════════ -->
+  <section class="mech-col">
+    <div class="sec-hdr">
+      <div class="sec-icon">🔧</div>
+      <div>
+        <div class="badge-label">Área do Mecânico / Oficina</div>
+        <h2>Registros de Serviço</h2>
+      </div>
+    </div>
+
+    <!-- Stats (shown when vehicle active) -->
+    <div class="card" id="statsCard" style="display:none">
+      <div class="stats">
+        <div class="stat"><div class="stat-val" id="statRec">0</div><div class="stat-lbl">Registros</div></div>
+        <div class="stat"><div class="stat-val" id="statTot">R$0</div><div class="stat-lbl">Total Gasto</div></div>
+        <div class="stat"><div class="stat-val" id="statLast">—</div><div class="stat-lbl">Último Serviço</div></div>
+      </div>
+    </div>
+
+    <!-- No vehicle notice -->
+    <div class="no-veh" id="noVehNotice">
+      <div class="ico">⚠️</div>
+      <strong>Nenhum Veículo Selecionado</strong>
+      <p style="margin-top:.25rem;font-size:.84rem">Selecione ou salve um veículo na Área do Proprietário primeiro.</p>
+    </div>
+
+    <!-- Add Service Record -->
+    <div class="card" id="addSvcCard" style="display:none">
+      <div class="card-title">
+        ➕ Adicionar Registro de Serviço
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="toggleSvcForm()" id="svcToggleBtn">Expandir</button>
+      </div>
+      <div id="svcForm" style="display:none">
+        <div class="row2">
+          <div class="fg"><label>Data do Serviço</label><input id="svcDate" type="date"></div>
+          <div class="fg"><label>Quilometragem no Serviço</label><input id="svcMileage" type="number" placeholder="45000" min="0"></div>
+        </div>
+        <div class="fg">
+          <label>Serviços Realizados</label>
+          <div class="stypes" id="svcTypeChecks"></div>
+          <input id="svcOther" type="text" placeholder="Outro / descrição personalizada...">
+        </div>
+        <div class="fg"><label>Notas / Observações</label><textarea id="svcNotes" placeholder="Descrição detalhada do trabalho..."></textarea></div>
+        <div class="fg"><label>Peças Utilizadas</label><textarea id="partsUsed" placeholder="Liste as peças trocadas ou instaladas..." style="min-height:58px"></textarea></div>
+
+        <div class="divider">Detalhamento de Custos</div>
+        <div class="row2">
+          <div class="fg"><label>Custo das Peças</label><div class="pfx"><input id="partsCost" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"></div></div>
+          <div class="fg"><label>Custo de Mão de Obra</label><div class="pfx"><input id="laborCost" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"></div></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label>Impostos / Outros</label><div class="pfx"><input id="taxAmt" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"></div></div>
+          <div class="fg"><label>Custo Total</label><div class="pfx"><input id="totalCost" type="number" placeholder="0.00" min="0" step="0.01" style="font-weight:700;background:#f0fdf4;border-color:#a7f3d0"></div></div>
+        </div>
+
+        <div class="divider">Oficina / Técnico</div>
+        <div class="row2">
+          <div class="fg"><label>Nome da Oficina</label><input id="shopName" type="text" placeholder="Auto Center Plus"></div>
+          <div class="fg"><label>Telefone da Oficina</label><input id="shopPhone" type="tel" placeholder="(11) 90000-0000"></div>
+        </div>
+        <div class="fg"><label>Endereço da Oficina</label><input id="shopAddr" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
+        <div class="row2">
+          <div class="fg"><label>Nome do Técnico</label><input id="techName" type="text" placeholder="Carlos Silva"></div>
+          <div class="fg"><label>Próximo Serviço</label><input id="nextSvc" type="text" placeholder="ex: 50.000 km ou 6 meses"></div>
+        </div>
+        <div class="fg"><label>Garantia</label><input id="warranty" type="text" placeholder="ex: 12 meses / 20.000 km"></div>
+
+        <div style="display:flex;gap:.65rem;margin-top:.9rem">
+          <button class="btn btn-success btn-block" onclick="addSvcRecord()">✅ Salvar Registro de Serviço</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service History -->
+    <div class="card" id="histCard" style="display:none">
+      <div class="card-title">
+        📋 Histórico de Serviços
+        <div style="margin-left:auto;display:flex;gap:.45rem;align-items:center">
+          <input id="srSearch" type="text" placeholder="Buscar…" style="width:120px;padding:.28rem .6rem;font-size:.78rem" oninput="renderHistory()">
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨</button>
+        </div>
+      </div>
+      <div class="slist" id="svcList">
+        <div class="empty"><div class="empty-ico">📝</div>Nenhum registro de serviço ainda</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Delete Modal -->
+<div class="overlay" id="delModal">
+  <div class="modal">
+    <div class="mhdr"><h3>⚠️ Confirmar Exclusão</h3><button class="mclose" onclick="closeModal('delModal')">✕</button></div>
+    <p id="delMsg"></p>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('delModal')">Cancelar</button>
+      <button class="btn btn-danger" id="delConfirmBtn">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Service Detail Modal -->
+<div class="overlay" id="detailModal">
+  <div class="modal" style="max-width:620px">
+    <div class="mhdr"><h3 id="detailTitle">Registro de Serviço</h3><button class="mclose" onclick="closeModal('detailModal')">✕</button></div>
+    <div id="detailContent"></div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('detailModal')">Fechar</button>
+      <button class="btn btn-danger" id="detailDelBtn">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  BANCO DE DADOS DE VEÍCULOS
+//  Formato: { "Marca": { "Modelo": { "Especificação": [[anoInicio,anoFim],...] } } }
+//  Anos são limitados a [1970, anoAtual] quando renderizados.
+// ═══════════════════════════════════════════════════════════════
+const DB = {
+"Acura":{
+  "CDX":{"Base":[[2016,2022]],"Technology":[[2016,2022]],"A-Spec":[[2018,2022]]},
+  "CL":{"2.2 CL":[[1997,1999]],"3.0 CL":[[1997,1999]],"Type-S":[[2001,2003]]},
+  "ILX":{"Base":[[2013,2022]],"Technology":[[2013,2022]],"A-Spec":[[2018,2022]]},
+  "Integra":{"Base":[[1986,2001],[2023,2025]],"GS":[[1986,2001]],"GS-R":[[1992,2001]],"Type R":[[1997,2001],[2023,2025]],"A-Spec":[[2023,2025]]},
+  "Legend":{"Base":[[1986,1995]],"L":[[1986,1995]],"LS":[[1991,1995]]},
+  "MDX":{"Base":[[2001,2025]],"Technology":[[2004,2025]],"A-Spec":[[2019,2025]],"Type S":[[2022,2025]],"Advance":[[2017,2025]]},
+  "NSX":{"Base":[[1991,2005],[2017,2022]],"Type R":[[2022,2022]]},
+  "RDX":{"Base":[[2007,2025]],"Technology":[[2007,2025]],"A-Spec":[[2019,2025]],"Advance":[[2019,2025]]},
+  "RL":{"Base":[[1996,2012]],"Technology":[[2005,2012]]},
+  "RLX":{"Base":[[2014,2020]],"Sport Hybrid":[[2015,2020]]},
+  "RSX":{"Base":[[2002,2006]],"Type-S":[[2002,2006]]},
+  "SLX":{"Base":[[1996,1999]]},
+  "TL":{"Base":[[1996,2014]],"Type-S":[[2002,2008]],"SH-AWD":[[2009,2014]]},
+  "TLX":{"Base":[[2015,2025]],"Technology":[[2015,2025]],"A-Spec":[[2018,2025]],"Type S":[[2021,2025]],"Advance":[[2021,2025]]},
+  "TSX":{"Base":[[2004,2014]],"V6":[[2010,2014]],"Sport Wagon":[[2011,2014]]},
+  "Vigor":{"Base":[[1992,1994]],"LS":[[1992,1994]]},
+  "ZDX":{"Base":[[2010,2013],[2024,2025]],"A-Spec":[[2024,2025]]}
+},
+"Alfa Romeo":{
+  "4C":{"Base":[[2015,2020]],"Launch Edition":[[2015,2016]]},
+  "Giulia":{"Sprint":[[2017,2025]],"Ti":[[2017,2025]],"Veloce":[[2019,2025]],"Quadrifoglio":[[2017,2025]]},
+  "Giulietta":{"Sprint":[[2014,2020]],"Veloce":[[2014,2020]],"Quadrifoglio":[[2014,2020]]},
+  "Spider":{"Base":[[1970,1994]],"Veloce":[[1970,1994]],"Graduate":[[1983,1994]]},
+  "Stelvio":{"Sprint":[[2018,2025]],"Ti":[[2018,2025]],"Veloce":[[2020,2025]],"Quadrifoglio":[[2018,2025]]},
+  "Tonale":{"Sprint":[[2023,2025]],"Ti":[[2023,2025]],"Veloce":[[2023,2025]],"PHEV":[[2023,2025]]}
+},
+"Aston Martin":{
+  "Cygnet":{"Base":[[2011,2013]]},
+  "DB7":{"Coupe":[[1994,2003]],"Volante":[[1996,2003]],"Vantage":[[1999,2003]]},
+  "DB9":{"Coupe":[[2004,2016]],"Volante":[[2004,2016]],"GT":[[2015,2016]]},
+  "DB11":{"V8":[[2017,2025]],"V12":[[2017,2022]],"AMR":[[2018,2025]],"Volante V8":[[2019,2025]]},
+  "DB12":{"Base":[[2024,2025]],"Volante":[[2024,2025]]},
+  "DBS":{"Superleggera":[[2018,2025]],"Volante":[[2019,2025]],"770 Ultimate":[[2023,2025]]},
+  "DBX":{"DBX":[[2021,2025]],"DBX707":[[2022,2025]]},
+  "Rapide":{"Base":[[2010,2020]],"S":[[2013,2020]],"AMR":[[2018,2020]]},
+  "V8 Vantage":{"Coupe":[[1977,2018]],"Roadster":[[2006,2018]],"S":[[2011,2018]]},
+  "V12 Vantage":{"Base":[[2010,2018]],"S":[[2013,2018]],"Roadster":[[2014,2018]]},
+  "Vanquish":{"Coupe":[[2001,2025]],"Volante":[[2004,2025]],"S":[[2004,2007],[2013,2018]]},
+  "Vantage":{"Base":[[2019,2025]],"Roadster":[[2020,2025]],"F1 Edition":[[2021,2025]],"GT3":[[2022,2025]]},
+  "Virage":{"Coupe":[[1989,1999],[2011,2012]],"Volante":[[1992,1996],[2011,2012]]}
+},
+"Audi":{
+  "A3":{"Premium":[[2006,2025]],"Premium Plus":[[2006,2025]],"Prestige":[[2015,2025]],"S3":[[2015,2025]],"e-tron":[[2020,2025]]},
+  "A4":{"Premium":[[1996,2025]],"Premium Plus":[[1996,2025]],"Prestige":[[2009,2025]],"S4":[[2000,2025]],"Allroad":[[2013,2025]]},
+  "A5":{"Premium":[[2008,2025]],"Premium Plus":[[2008,2025]],"Prestige":[[2008,2025]],"S5":[[2008,2025]],"RS5":[[2013,2025]]},
+  "A6":{"Premium":[[1995,2025]],"Premium Plus":[[1995,2025]],"Prestige":[[2005,2025]],"S6":[[2002,2025]],"RS6 Avant":[[2021,2025]]},
+  "A7":{"Premium Plus":[[2012,2025]],"Prestige":[[2012,2025]],"S7":[[2013,2025]],"RS7":[[2021,2025]]},
+  "A8":{"Premium":[[1997,2025]],"Premium Plus":[[1997,2025]],"L":[[1997,2025]],"S8":[[1997,2025]]},
+  "Allroad":{"Base":[[2001,2005],[2013,2025]],"Premium Plus":[[2013,2025]],"Prestige":[[2013,2025]]},
+  "e-tron":{"Premium":[[2019,2025]],"Premium Plus":[[2019,2025]],"Prestige":[[2019,2025]],"S":[[2021,2025]]},
+  "e-tron GT":{"Base":[[2022,2025]],"RS e-tron GT":[[2022,2025]]},
+  "Q3":{"Premium":[[2015,2025]],"Premium Plus":[[2015,2025]],"Prestige":[[2020,2025]],"S Line":[[2020,2025]]},
+  "Q4 e-tron":{"Premium":[[2022,2025]],"Premium Plus":[[2022,2025]],"Prestige":[[2022,2025]],"SQ4":[[2022,2025]]},
+  "Q5":{"Premium":[[2009,2025]],"Premium Plus":[[2009,2025]],"Prestige":[[2009,2025]],"SQ5":[[2014,2025]],"PHEV":[[2020,2025]]},
+  "Q7":{"Premium":[[2007,2025]],"Premium Plus":[[2007,2025]],"Prestige":[[2007,2025]],"SQ7":[[2020,2025]]},
+  "Q8":{"Premium":[[2019,2025]],"Premium Plus":[[2019,2025]],"Prestige":[[2019,2025]],"SQ8":[[2021,2025]],"RS Q8":[[2021,2025]]},
+  "R8":{"V10":[[2008,2025]],"V10 Plus":[[2015,2025]],"V10 Spyder":[[2010,2025]],"GT":[[2023,2025]]},
+  "RS3":{"Sedan":[[2022,2025]],"Sportback":[[2022,2025]]},
+  "RS4":{"Avant":[[2007,2025]]},
+  "RS5":{"Coupe":[[2013,2025]],"Sportback":[[2019,2025]],"Competition":[[2022,2025]]},
+  "RS6":{"Avant":[[2021,2025]],"Avant Performance":[[2023,2025]]},
+  "RS7":{"Sportback":[[2021,2025]],"Performance":[[2023,2025]]},
+  "S3":{"Base":[[2015,2025]]},
+  "S4":{"Base":[[2000,2025]]},
+  "S5":{"Coupe":[[2008,2025]],"Sportback":[[2019,2025]],"Cabriolet":[[2010,2017]]},
+  "S6":{"Sedan":[[2002,2025]]},
+  "S7":{"Sportback":[[2013,2025]]},
+  "S8":{"Base":[[1997,2025]],"Plus":[[2016,2017]]},
+  "SQ5":{"Base":[[2014,2025]],"Sportback":[[2021,2025]]},
+  "SQ7":{"Base":[[2020,2025]]},
+  "SQ8":{"Base":[[2021,2025]]},
+  "TT":{"Coupe":[[2000,2023]],"Roadster":[[2000,2023]]},
+  "TT RS":{"Coupe":[[2012,2023]],"Roadster":[[2016,2023]]},
+  "TTS":{"Coupe":[[2009,2023]],"Roadster":[[2009,2023]]}
+},
+"Bentley":{
+  "Arnage":{"Base":[[1998,2009]],"R":[[2001,2009]],"T":[[2003,2009]]},
+  "Azure":{"Base":[[1995,2003],[2006,2009]],"T":[[2008,2009]]},
+  "Bentayga":{"V8":[[2016,2025]],"Hybrid":[[2020,2025]],"Speed":[[2020,2025]],"Extended Wheelbase":[[2023,2025]],"Mulliner":[[2022,2025]]},
+  "Brooklands":{"Base":[[1992,1998],[2008,2011]],"Coupe":[[2008,2011]]},
+  "Continental GT":{"V8":[[2004,2025]],"W12":[[2004,2025]],"Speed":[[2007,2025]],"Mulliner":[[2022,2025]],"Azure":[[2022,2025]]},
+  "Continental GTC":{"V8":[[2006,2025]],"W12":[[2006,2025]],"Speed":[[2010,2025]],"Mulliner":[[2022,2025]]},
+  "Flying Spur":{"W12":[[2006,2025]],"V8":[[2014,2025]],"Speed":[[2012,2025]],"Hybrid":[[2022,2025]],"Mulliner":[[2021,2025]]},
+  "Mulsanne":{"Base":[[2010,2020]],"Speed":[[2012,2020]],"Extended Wheelbase":[[2016,2020]]},
+  "T-Series":{"Base":[[1970,1980]]}
+},
+"BMW":{
+  "2002":{"Base":[[1970,1976]],"Tii":[[1972,1974]]},
+  "1 Series":{"128i":[[2008,2012]],"135i":[[2008,2012]],"M":[[2011,2012]]},
+  "2 Series":{"230i":[[2014,2025]],"M240i":[[2016,2025]],"M235i":[[2014,2016]],"M2":[[2016,2025]],"M2 Competition":[[2019,2025]],"M2 CS":[[2020,2021]]},
+  "3 Series":{"330i":[[1975,2025]],"328i":[[1993,2016]],"335i":[[2006,2015]],"340i":[[2016,2022]],"M340i":[[2020,2025]],"M3":[[1988,2025]],"M3 Competition":[[2016,2025]],"M3 CS":[[2023,2025]]},
+  "4 Series":{"430i":[[2014,2025]],"M440i":[[2021,2025]],"M4":[[2015,2025]],"M4 Competition":[[2021,2025]],"M4 CSL":[[2022,2023]],"M4 GTS":[[2016,2016]]},
+  "5 Series":{"530i":[[1972,2025]],"540i":[[1997,2025]],"550i":[[2006,2016]],"M550i":[[2018,2025]],"M5":[[1988,2025]],"M5 Competition":[[2019,2025]],"M5 CS":[[2021,2022]]},
+  "6 Series":{"640i":[[2012,2019]],"650i":[[2012,2019]],"M6":[[2006,2018]],"M6 Gran Coupe":[[2013,2018]]},
+  "7 Series":{"740i":[[1977,2025]],"750i":[[1995,2025]],"760i":[[2003,2025]],"M760i":[[2017,2025]],"Alpina B7":[[2007,2023]]},
+  "8 Series":{"840i":[[1990,1999],[2019,2025]],"M850i":[[2019,2025]],"M8":[[2020,2025]],"M8 Competition":[[2020,2025]],"M8 Gran Coupe":[[2020,2025]]},
+  "i3":{"Base":[[2014,2021]],"s":[[2018,2021]]},
+  "i4":{"eDrive40":[[2022,2025]],"xDrive40":[[2022,2025]],"M50":[[2022,2025]]},
+  "i5":{"eDrive40":[[2024,2025]],"M60":[[2024,2025]]},
+  "i7":{"eDrive50":[[2023,2025]],"xDrive60":[[2023,2025]],"M70":[[2024,2025]]},
+  "i8":{"Coupe":[[2014,2020]],"Roadster":[[2018,2020]]},
+  "iX":{"xDrive40":[[2022,2025]],"xDrive50":[[2022,2025]],"M60":[[2022,2025]]},
+  "iX1":{"xDrive30":[[2023,2025]]},
+  "iX3":{"Base":[[2022,2025]]},
+  "M2":{"Base":[[2016,2025]],"Competition":[[2019,2025]],"CS":[[2020,2021]]},
+  "M3":{"Base":[[1988,2025]],"Competition":[[2016,2025]],"CS":[[2023,2025]],"Touring":[[2023,2025]]},
+  "M4":{"Base":[[2015,2025]],"Competition":[[2021,2025]],"CSL":[[2022,2023]],"GTS":[[2016,2016]]},
+  "M5":{"Base":[[1988,2025]],"Competition":[[2019,2025]],"CS":[[2021,2022]]},
+  "M6":{"Coupe":[[2006,2018]],"Convertible":[[2006,2018]],"Gran Coupe":[[2013,2018]]},
+  "M8":{"Coupe":[[2020,2025]],"Convertible":[[2020,2025]],"Gran Coupe":[[2020,2025]],"Competition":[[2020,2025]]},
+  "X1":{"sDrive28i":[[2013,2025]],"xDrive28i":[[2013,2025]],"xDrive30e":[[2021,2025]],"M35i":[[2023,2025]]},
+  "X2":{"sDrive28i":[[2018,2025]],"xDrive28i":[[2018,2025]],"M35i":[[2020,2025]]},
+  "X3":{"sDrive30i":[[2004,2025]],"xDrive30i":[[2004,2025]],"xDrive30e":[[2020,2025]],"M40i":[[2018,2025]],"M":[[2020,2025]]},
+  "X4":{"xDrive30i":[[2015,2025]],"M40i":[[2017,2025]],"M":[[2020,2025]]},
+  "X5":{"sDrive40i":[[2000,2025]],"xDrive40i":[[2000,2025]],"xDrive50e":[[2023,2025]],"M50i":[[2020,2022]],"M":[[2010,2025]],"M Competition":[[2020,2025]]},
+  "X5 M":{"Base":[[2010,2025]],"Competition":[[2020,2025]]},
+  "X6":{"sDrive35i":[[2009,2019]],"xDrive40i":[[2020,2025]],"M50i":[[2020,2022]],"M":[[2010,2025]],"M Competition":[[2020,2025]]},
+  "X7":{"xDrive40i":[[2019,2025]],"xDrive50i":[[2019,2025]],"M60i":[[2023,2025]],"Alpina XB7":[[2021,2023]]},
+  "Z3":{"1.9":[[1996,2002]],"2.5":[[2001,2002]],"3.0":[[2001,2002]],"M":[[1997,2002]]},
+  "Z4":{"sDrive20i":[[2003,2025]],"sDrive30i":[[2009,2025]],"M40i":[[2019,2025]],"M":[[2006,2008]]},
+  "Z8":{"Base":[[2000,2003]]}
+},
+"Bugatti":{
+  "Chiron":{"Base":[[2017,2025]],"Sport":[[2018,2025]],"Pur Sport":[[2020,2025]],"Super Sport 300+":[[2019,2022]],"L'Ultime":[[2024,2024]]},
+  "Divo":{"Base":[[2021,2025]]},
+  "Veyron":{"Base":[[2006,2015]],"Grand Sport":[[2009,2015]],"Super Sport":[[2010,2015]],"Vitesse":[[2012,2015]]}
+},
+"Buick":{
+  "Century":{"Custom":[[1973,2005]],"Limited":[[1982,2005]],"Gran Sport":[[1997,2000]]},
+  "Electra":{"225":[[1970,1990]],"Limited":[[1976,1990]],"Park Avenue":[[1984,1990]]},
+  "Enclave":{"Preferred":[[2008,2025]],"Essence":[[2008,2025]],"Avenir":[[2018,2025]],"Sport Touring":[[2023,2025]]},
+  "Encore":{"Preferred":[[2013,2025]],"Essence":[[2015,2025]],"Sport Touring":[[2023,2025]]},
+  "Encore GX":{"Preferred":[[2020,2025]],"Essence":[[2020,2025]],"Sport Touring":[[2020,2025]]},
+  "Envision":{"Preferred":[[2016,2025]],"Essence":[[2021,2025]],"Avenir":[[2021,2025]],"Sport Touring":[[2023,2025]]},
+  "LaCrosse":{"Base":[[2005,2019]],"Leather":[[2012,2019]],"Premium":[[2012,2019]],"Avenir":[[2018,2019]]},
+  "LeSabre":{"Custom":[[1970,2005]],"Limited":[[1970,2005]]},
+  "Lucerne":{"CX":[[2006,2011]],"CXL":[[2006,2011]],"CXS":[[2006,2011]],"Super":[[2008,2010]]},
+  "Park Avenue":{"Base":[[1991,2005]],"Ultra":[[1991,2005]]},
+  "Reatta":{"Coupe":[[1988,1991]],"Convertible":[[1990,1991]]},
+  "Regal":{"Base":[[1973,2004],[2011,2017]],"GS":[[1973,2004],[2011,2017]],"TourX":[[2018,2018]],"Sportback":[[2018,2018]]},
+  "Rendezvous":{"CX":[[2002,2007]],"CXL":[[2002,2007]],"Ultra":[[2002,2007]]},
+  "Riviera":{"Base":[[1970,1999]],"GS":[[1994,1999]]},
+  "Skylark":{"Base":[[1970,1998]],"Custom":[[1970,1998]],"GS":[[1970,1972]]},
+  "Verano":{"Base":[[2012,2017]],"Leather":[[2012,2017]],"Premium":[[2012,2017]],"Sport Touring":[[2014,2017]]},
+  "Wildcat":{"Base":[[1970,1975]],"Custom":[[1970,1975]]}
+},
+"Cadillac":{
+  "ATS":{"Luxury":[[2013,2019]],"Performance":[[2013,2019]],"Premium":[[2013,2019]],"Premium Performance":[[2016,2019]],"V":[[2016,2019]]},
+  "Allante":{"Base":[[1987,1993]]},
+  "Brougham":{"Base":[[1987,1992]]},
+  "CT4":{"Luxury":[[2020,2025]],"Premium Luxury":[[2020,2025]],"Sport":[[2020,2025]],"V-Series":[[2021,2025]],"V-Series Blackwing":[[2022,2025]]},
+  "CT5":{"Luxury":[[2020,2025]],"Premium Luxury":[[2020,2025]],"Sport":[[2020,2025]],"Platinum":[[2021,2025]],"V-Series":[[2021,2025]],"V-Series Blackwing":[[2022,2025]]},
+  "CT6":{"Luxury":[[2016,2020]],"Premium Luxury":[[2016,2020]],"Platinum":[[2016,2020]],"V-Sport":[[2018,2020]]},
+  "CTS":{"Base":[[2003,2019]],"Luxury":[[2010,2019]],"Performance":[[2014,2019]],"Vsport":[[2014,2019]],"V":[[2004,2019]]},
+  "Calais":{"Base":[[1970,1976]],"Luxury":[[1970,1976]]},
+  "Catera":{"Base":[[1997,2001]],"Sport":[[2001,2001]]},
+  "Cimarron":{"Base":[[1982,1988]],"d'Elegance":[[1983,1988]]},
+  "DeVille":{"Base":[[1970,2005]],"d'Elegance":[[1970,2005]],"DTS":[[2006,2011]],"DHS":[[2000,2005]]},
+  "DTS":{"Base":[[2006,2011]],"Luxury":[[2006,2011]],"Platinum":[[2009,2011]]},
+  "Eldorado":{"Base":[[1970,2002]],"Touring":[[1992,2002]],"ETC":[[1992,2002]]},
+  "Escalade":{"Luxury":[[1999,2025]],"Premium Luxury":[[2015,2025]],"Sport Platinum":[[2021,2025]],"Premium Luxury Platinum":[[2021,2025]],"V-Series Blackwing":[[2023,2025]]},
+  "Escalade ESV":{"Luxury":[[2002,2025]],"Premium Luxury":[[2015,2025]],"Sport Platinum":[[2021,2025]],"Premium Luxury Platinum":[[2021,2025]]},
+  "Fleetwood":{"Base":[[1970,1996]],"Brougham":[[1980,1996]]},
+  "Seville":{"Base":[[1975,2004]],"STS":[[1992,2004]],"SLS":[[1998,2004]]},
+  "SRX":{"Base":[[2004,2016]],"Luxury":[[2004,2016]],"Performance":[[2010,2016]],"Premium":[[2010,2016]]},
+  "STS":{"Base":[[2005,2011]],"Luxury":[[2005,2011]],"Performance":[[2005,2011]],"V8":[[2005,2011]],"V":[[2006,2011]]},
+  "XLR":{"Base":[[2004,2009]],"V":[[2006,2009]]},
+  "XTS":{"Luxury":[[2013,2019]],"Premium":[[2013,2019]],"Platinum":[[2013,2019]],"V-Sport":[[2014,2019]]},
+  "XT4":{"Luxury":[[2019,2025]],"Premium Luxury":[[2019,2025]],"Sport":[[2019,2025]]},
+  "XT5":{"Luxury":[[2017,2025]],"Premium Luxury":[[2017,2025]],"Sport":[[2021,2025]],"Platinum":[[2021,2025]]},
+  "XT6":{"Sport":[[2020,2025]],"Premium Luxury":[[2020,2025]],"Platinum":[[2021,2025]]}
+},
+"Chevrolet":{
+  "Blazer (K5 Full-Size)":{"Base":[[1970,1994]],"Cheyenne":[[1971,1994]],"Scottsdale":[[1975,1994]],"Silverado":[[1978,1994]]},
+  "Blazer (Mid-Size)":{"LS":[[1995,2005],[2019,2025]],"LT":[[1998,2005],[2019,2025]],"RS":[[2019,2025]],"Premier":[[2019,2025]],"SS":[[2024,2025]]},
+  "Camaro":{"Base":[[1970,2002],[2010,2025]],"LT":[[2010,2025]],"SS":[[1970,1974],[2010,2025]],"ZL1":[[1969,1970],[2012,2025]],"Z/28":[[1970,2002]],"IROC-Z":[[1985,1992]],"RS":[[1970,2002],[2010,2025]],"1LE":[[2012,2025]]},
+  "Caprice":{"Base":[[1970,1996]],"Classic":[[1970,1996]],"Estate Wagon":[[1977,1990]]},
+  "Cavalier":{"Base":[[1982,2005]],"Z24":[[1985,2005]],"LS":[[1994,2005]],"RS":[[1991,2002]]},
+  "Cobalt":{"LS":[[2005,2010]],"LT":[[2005,2010]],"SS":[[2005,2010]]},
+  "Colorado":{"Base / WT":[[2004,2025]],"LT":[[2004,2025]],"Z71":[[2004,2025]],"ZR2":[[2017,2025]],"Trail Boss":[[2022,2025]]},
+  "Corvette":{"Stingray":[[1970,2025]],"Z06":[[1970,2025]],"ZR1":[[1970,2025]],"Grand Sport":[[1996,2019]],"C8 E-Ray":[[2024,2025]]},
+  "Cruze":{"LS":[[2011,2019]],"LT":[[2011,2019]],"LTZ":[[2011,2019]],"Premier":[[2016,2019]]},
+  "El Camino":{"Base":[[1970,1987]],"SS":[[1970,1987]],"Conquista":[[1979,1987]]},
+  "Equinox":{"LS":[[2005,2025]],"LT":[[2005,2025]],"Premier":[[2018,2025]],"RS":[[2022,2025]],"EV":[[2024,2025]]},
+  "Equinox EV":{"1LT":[[2024,2025]],"2LT":[[2024,2025]],"3LT":[[2024,2025]]},
+  "Express 1500/2500/3500":{"Base":[[1996,2025]],"LS":[[1996,2025]],"LT":[[2003,2025]]},
+  "HHR":{"LS":[[2006,2011]],"LT":[[2006,2011]],"SS":[[2008,2010]],"Panel":[[2007,2011]]},
+  "Impala":{"Base":[[1970,1985],[1994,2020]],"LT":[[2000,2020]],"LTZ":[[2006,2020]],"Premier":[[2014,2020]],"SS":[[1994,2009]]},
+  "Lumina":{"Base":[[1990,2001]],"Euro":[[1990,1994]],"Z34":[[1992,1999]]},
+  "Malibu":{"Base":[[1970,1983],[1997,2025]],"Classic":[[2004,2007]],"LS":[[1997,2025]],"LT":[[2004,2025]],"LTZ":[[2008,2025]],"Premier":[[2016,2025]],"Hybrid":[[2016,2025]]},
+  "Monte Carlo":{"Base":[[1970,1988],[1995,2007]],"SS":[[1970,1988],[1995,2007]],"Landau":[[1975,1988]],"LS":[[1995,2007]],"LT":[[2004,2007]]},
+  "Nova":{"Base":[[1970,1979]],"SS":[[1970,1979]],"Concours":[[1971,1975]]},
+  "S-10 Pickup":{"Base":[[1982,2004]],"LS":[[1982,2004]],"LT":[[1994,2004]],"SS":[[2003,2004]],"ZR2":[[1994,2003]]},
+  "Silverado 1500":{"WT":[[1999,2025]],"Custom":[[2016,2025]],"LT":[[1999,2025]],"RST":[[2018,2025]],"LTZ":[[1999,2025]],"High Country":[[2014,2025]],"Trail Boss":[[2019,2025]],"ZR2":[[2022,2025]]},
+  "Silverado 2500HD":{"WT":[[2001,2025]],"LT":[[2001,2025]],"LTZ":[[2001,2025]],"High Country":[[2015,2025]]},
+  "Silverado 3500HD":{"WT":[[2001,2025]],"LT":[[2001,2025]],"LTZ":[[2001,2025]],"High Country":[[2015,2025]]},
+  "Sonic":{"LS":[[2012,2020]],"LT":[[2012,2020]],"LTZ":[[2012,2020]],"RS":[[2014,2020]]},
+  "Spark":{"LS":[[2013,2022]],"LT":[[2013,2022]],"ACTIV":[[2017,2022]]},
+  "Suburban":{"Base":[[1970,2025]],"LS":[[2000,2025]],"LT":[[2000,2025]],"Premier":[[2015,2025]],"RST":[[2020,2025]],"Z71":[[1992,2025]]},
+  "Tahoe":{"LS":[[1995,2025]],"LT":[[2000,2025]],"Premier":[[2015,2025]],"RST":[[2020,2025]],"Z71":[[1995,2025]]},
+  "Tracker":{"Base":[[1989,2004]],"LSi":[[1989,2004]]},
+  "Traverse":{"LS":[[2009,2025]],"LT":[[2009,2025]],"Premier":[[2015,2025]],"RS":[[2022,2025]],"High Country":[[2018,2025]],"Activ":[[2024,2025]]},
+  "Trailblazer":{"LS":[[2002,2009],[2021,2025]],"LT":[[2002,2009],[2021,2025]],"LTZ":[[2002,2009]],"SS":[[2006,2009]],"RS":[[2021,2025]],"ACTIV":[[2021,2025]]},
+  "Trax":{"LS":[[2013,2025]],"LT":[[2013,2025]],"Premier":[[2015,2022]],"RS":[[2024,2025]],"ACTIV":[[2024,2025]]},
+  "Uplander":{"Base":[[2005,2008]],"LS":[[2005,2008]],"LT":[[2005,2008]]},
+  "Venture":{"Base":[[1997,2005]],"LS":[[1997,2005]],"LT":[[2000,2005]]},
+  "Volt":{"Base":[[2011,2019]],"LT":[[2011,2019]],"Premier":[[2016,2019]]},
+  "Bolt EV":{"LT":[[2017,2025]],"Premier":[[2017,2025]],"EUV LT":[[2022,2025]],"EUV Premier":[[2022,2025]]},
+  "Bolt EUV":{"LT":[[2022,2025]],"Premier":[[2022,2025]]}
+},
+"Chrysler":{
+  "200":{"LX":[[2011,2017]],"Touring":[[2011,2017]],"Limited":[[2011,2017]],"S":[[2015,2017]],"C":[[2015,2017]]},
+  "300":{"Base":[[1999,2004]],"Touring":[[2005,2025]],"Limited":[[2005,2025]],"S":[[2011,2025]],"300S":[[2012,2025]],"C":[[2005,2025]],"Platinum":[[2020,2025]]},
+  "Aspen":{"Limited":[[2007,2009]],"Limited HEMI":[[2007,2009]]},
+  "Cirrus":{"LX":[[1995,2000]],"LXi":[[1995,2000]]},
+  "Concorde":{"LX":[[1993,2004]],"LXi":[[1993,2004]],"Limited":[[1993,2004]]},
+  "Cordoba":{"Base":[[1975,1983]],"Crown":[[1980,1983]]},
+  "Crossfire":{"Base":[[2004,2008]],"Limited":[[2004,2008]],"SRT-6":[[2004,2006]]},
+  "LeBaron":{"Base":[[1978,1995]],"GTC":[[1987,1995]],"Landau":[[1978,1988]]},
+  "New Yorker":{"Base":[[1970,1996]],"Fifth Avenue":[[1979,1996]],"Salon":[[1979,1990]]},
+  "Newport":{"Base":[[1970,1981]],"Custom":[[1970,1981]],"Royal":[[1970,1981]]},
+  "PT Cruiser":{"Base":[[2001,2010]],"Classic":[[2006,2010]],"Limited":[[2001,2010]],"GT":[[2003,2010]],"Touring":[[2003,2010]]},
+  "Pacifica":{"Base":[[2004,2008],[2017,2025]],"Touring":[[2004,2008],[2017,2025]],"Limited":[[2004,2008],[2017,2025]],"Pinnacle":[[2020,2025]],"Plug-in Hybrid Touring":[[2018,2025]],"Plug-in Hybrid Pinnacle":[[2021,2025]]},
+  "Sebring":{"JX / JXi":[[1995,2000]],"Coupe":[[1996,2006]],"LX":[[2001,2010]],"Limited":[[2001,2010]],"Touring":[[2001,2010]]},
+  "Town & Country":{"Base":[[1984,2016]],"LX":[[1990,2016]],"Limited":[[1996,2016]],"Touring":[[1996,2016]]},
+  "Voyager":{"Base":[[1988,2000],[2020,2025]],"SE":[[1988,2000]],"LX":[[1991,2000]],"Limited":[[1997,2000]]}
+},
+"Datsun":{
+  "240Z":{"Base":[[1970,1973]],"2+2":[[1971,1973]]},
+  "260Z":{"Base":[[1974,1975]],"2+2":[[1974,1975]]},
+  "280Z":{"Base":[[1975,1978]],"2+2":[[1975,1978]],"GL":[[1977,1978]]},
+  "710 / Violet":{"Base":[[1973,1977]],"Deluxe":[[1973,1977]]},
+  "810 / Maxima":{"Base":[[1977,1984]],"GL":[[1977,1984]],"Maxima":[[1982,1984]]},
+  "B210":{"Base":[[1974,1978]],"DX":[[1974,1978]],"GX":[[1976,1978]]},
+  "Pickup":{"Base":[[1970,1986]],"DX":[[1979,1986]],"King Cab":[[1980,1986]]}
+},
+"Dodge":{
+  "Avenger":{"Base":[[1995,2000],[2008,2014]],"ES":[[1995,2000]],"SE":[[2008,2014]],"SXT":[[2008,2014]],"R/T":[[2008,2014]]},
+  "Caliber":{"SE":[[2007,2012]],"SXT":[[2007,2012]],"Uptown":[[2008,2012]],"R/T":[[2007,2012]],"SRT4":[[2008,2009]]},
+  "Caravan / Grand Caravan":{"Base":[[1984,2020]],"SE":[[1991,2020]],"SXT":[[2001,2020]],"R/T":[[2008,2020]],"GT":[[2016,2020]],"ES":[[1996,2007]]},
+  "Challenger":{"Base":[[1970,1974]],"R/T":[[1970,1974],[2008,2025]],"SXT":[[2008,2025]],"SXT Plus":[[2012,2025]],"GT":[[2017,2025]],"Scat Pack":[[2015,2025]],"SRT 392":[[2014,2025]],"SRT Hellcat":[[2015,2025]],"SRT Hellcat Redeye":[[2019,2025]],"SRT Demon":[[2018,2018]],"SRT Super Stock":[[2021,2021]]},
+  "Charger":{"Base":[[1970,1978]],"R/T":[[1970,1978],[2006,2025]],"SE":[[2006,2025]],"SXT":[[2006,2025]],"SXT Plus":[[2012,2025]],"GT":[[2017,2025]],"Scat Pack":[[2015,2025]],"SRT 392":[[2014,2025]],"SRT Hellcat":[[2015,2025]],"SRT Hellcat Redeye":[[2021,2025]],"Daytona":[[1969,1970],[2024,2025]]},
+  "Coronet":{"Base":[[1970,1976]],"Crestwood":[[1970,1975]],"Custom":[[1970,1976]],"Brougham":[[1973,1976]]},
+  "Dakota":{"Base":[[1987,2011]],"SE":[[1994,2011]],"SLT":[[1994,2011]],"R/T":[[1998,2003]],"Sport":[[1987,2011]],"TRX":[[2005,2007]]},
+  "Dart":{"Base":[[1970,1976],[2013,2016]],"Swinger":[[1970,1976]],"GT":[[2013,2016]],"Aero":[[2013,2016]],"SXT":[[2013,2016]],"Limited":[[2013,2016]],"R/T":[[2015,2016]]},
+  "Durango":{"SXT":[[1998,2025]],"GT":[[2014,2025]],"Citadel":[[2011,2025]],"R/T":[[2011,2025]],"SRT 392":[[2018,2025]],"Hellcat":[[2021,2021]]},
+  "Hornet":{"GT":[[2023,2025]],"GT Plus":[[2023,2025]],"R/T":[[2023,2025]],"R/T Plus":[[2023,2025]]},
+  "Intrepid":{"Base":[[1993,2004]],"ES":[[1993,2004]],"SE":[[2000,2004]],"R/T":[[2000,2004]]},
+  "Journey":{"SE":[[2009,2020]],"SXT":[[2009,2020]],"Crossroad":[[2014,2020]],"GT":[[2014,2020]]},
+  "Monaco":{"Base":[[1970,1978]],"Custom":[[1970,1977]],"Brougham":[[1970,1978]]},
+  "Neon":{"Base":[[1994,2005]],"Highline":[[1994,2005]],"Sport":[[1994,2005]],"ACR":[[1994,2005]],"SXT":[[2000,2005]],"R/T":[[2000,2005]]},
+  "Nitro":{"SXT":[[2007,2011]],"SLT":[[2007,2011]],"R/T":[[2007,2011]],"Detonator":[[2010,2011]]},
+  "Omni":{"Base":[[1978,1990]],"GLH":[[1984,1986]],"GLHS":[[1986,1986]]},
+  "Polara":{"Base":[[1970,1973]],"Custom":[[1970,1973]],"Brougham":[[1971,1973]]},
+  "Shadow":{"Base":[[1987,1994]],"ES":[[1987,1994]],"America":[[1992,1994]]},
+  "Spirit":{"Base":[[1989,1995]],"LE":[[1989,1995]],"ES":[[1989,1995]],"R/T":[[1992,1995]]},
+  "Stealth":{"Base":[[1991,1996]],"ES":[[1991,1996]],"R/T":[[1991,1996]],"R/T Turbo":[[1991,1996]]},
+  "Stratus":{"Base":[[1994,2006]],"SE":[[1994,2006]],"ES":[[1994,2006]],"SXT":[[2001,2006]],"R/T":[[2001,2006]]},
+  "Viper":{"RT/10":[[1992,2002]],"GTS":[[1996,2002]],"SRT-10":[[2003,2010]],"SRT":[[2013,2017]],"ACR":[[2016,2017]],"GTC":[[2015,2017]]}
+},
+"Ferrari":{
+  "208 / 246 GT Dino":{"Dino 208 GT4":[[1975,1980]],"Dino 246 GT":[[1970,1974]],"Dino 246 GTS":[[1972,1974]]},
+  "308 GT4 / GTB / GTS":{"308 GT4":[[1973,1980]],"308 GTB":[[1976,1985]],"308 GTS":[[1977,1985]],"308 GTBi":[[1980,1982]],"308 GTSi":[[1980,1982]]},
+  "328 GTB / GTS":{"328 GTB":[[1985,1989]],"328 GTS":[[1985,1989]]},
+  "348":{"348 TB":[[1989,1994]],"348 TS":[[1989,1994]],"348 Spider":[[1993,1994]]},
+  "360 Modena / Spider":{"360 Modena":[[1999,2004]],"360 Spider":[[2000,2004]],"Challenge Stradale":[[2003,2004]]},
+  "430 Scuderia":{"430 Scuderia":[[2007,2009]],"430 Spider 16M":[[2008,2009]],"F430":[[2004,2009]],"F430 Spider":[[2005,2009]]},
+  "456 M GT":{"456 GT":[[1992,1998]],"456 M GT":[[1998,2003]],"456 M GTA":[[1998,2003]]},
+  "458 Italia / Spider":{"458 Italia":[[2010,2015]],"458 Spider":[[2011,2015]],"458 Speciale":[[2013,2015]],"458 Speciale A":[[2015,2015]]},
+  "488 GTB / Spider":{"488 GTB":[[2016,2020]],"488 Spider":[[2016,2020]],"488 Pista":[[2018,2020]],"488 Pista Spider":[[2019,2020]]},
+  "512 BB / Testarossa":{"512 BB":[[1976,1984]],"512 BBi":[[1981,1984]],"Testarossa":[[1985,1992]],"512 TR":[[1992,1994]],"F512 M":[[1994,1996]]},
+  "550 / 575M Maranello":{"550 Maranello":[[1997,2001]],"550 Barchetta":[[2000,2001]],"575M Maranello":[[2002,2006]],"575 Superamerica":[[2005,2006]]},
+  "599 GTB":{"599 GTB Fiorano":[[2006,2012]],"599 GTO":[[2010,2011]],"SA Aperta":[[2010,2011]]},
+  "612 Scaglietti":{"612 Scaglietti":[[2004,2011]],"612 One-to-One":[[2009,2011]]},
+  "812 Superfast / GTS":{"812 Superfast":[[2017,2022]],"812 GTS":[[2019,2025]],"812 Competizione":[[2022,2022]]},
+  "California / T":{"California":[[2009,2012]],"California T":[[2012,2017]]},
+  "F40":{"F40":[[1987,1992]]},
+  "F50":{"F50":[[1995,1997]]},
+  "F12 Berlinetta":{"F12 Berlinetta":[[2012,2017]],"F12 tdf":[[2015,2016]]},
+  "F8 Tributo":{"F8 Tributo":[[2020,2025]],"F8 Spider":[[2020,2025]]},
+  "GTC4Lusso":{"GTC4Lusso":[[2017,2020]],"GTC4Lusso T":[[2017,2020]]},
+  "LaFerrari":{"LaFerrari":[[2014,2016]],"LaFerrari Aperta":[[2016,2016]]},
+  "Portofino / M":{"Portofino":[[2018,2020]],"Portofino M":[[2021,2022]]},
+  "296":{"296 GTB":[[2022,2025]],"296 GTS":[[2023,2025]]},
+  "Purosangue":{"Purosangue":[[2024,2025]]},
+  "Roma":{"Roma":[[2021,2025]],"Roma Spider":[[2024,2025]]},
+  "SF90 Stradale":{"SF90 Stradale":[[2020,2025]],"SF90 Spider":[[2021,2025]],"SF90 XX Stradale":[[2024,2025]]}
+},
+"Fiat":{
+  "124 Spider":{"Classica":[[2017,2020]],"Lusso":[[2017,2020]],"Abarth":[[2017,2020]]},
+  "500":{"Pop":[[2012,2019]],"Sport":[[2012,2019]],"Lounge":[[2012,2019]],"Turbo":[[2014,2019]],"Abarth":[[2012,2019]]},
+  "500L":{"Easy":[[2014,2020]],"Trekking":[[2014,2020]],"Lounge":[[2014,2020]]},
+  "500X":{"Pop":[[2016,2025]],"Trekking":[[2016,2025]],"Lounge":[[2016,2025]],"Sport":[[2019,2025]]},
+  "500e":{"Base":[[2013,2019],[2024,2025]],"Sport":[[2024,2025]],"La Prima":[[2024,2025]]}
+},
+"Ford":{
+  "Bronco":{"Base":[[1970,1996],[2021,2025]],"Big Bend":[[2021,2025]],"Black Diamond":[[2021,2025]],"Outer Banks":[[2021,2025]],"Badlands":[[2021,2025]],"Wildtrak":[[2021,2025]],"Everglades":[[2022,2025]],"Raptor":[[2022,2025]],"Raptor R":[[2023,2025]]},
+  "Bronco Sport":{"Base":[[2021,2025]],"Big Bend":[[2021,2025]],"Outer Banks":[[2021,2025]],"Badlands":[[2021,2025]],"Heritage":[[2023,2025]]},
+  "C-Max":{"SE":[[2013,2018]],"SEL":[[2013,2018]],"Energi SE":[[2013,2018]],"Energi SEL":[[2013,2018]]},
+  "Contour":{"GL":[[1995,2000]],"LX":[[1995,2000]],"SE":[[1995,2000]],"SVT":[[1998,2000]]},
+  "Crown Victoria":{"Base":[[1992,2011]],"LX":[[1992,2011]],"LX Sport":[[2000,2011]]},
+  "E-150 / E-250 / E-350":{"XL":[[1975,2014]],"XLT":[[1990,2014]],"XLS":[[1992,2014]]},
+  "EcoSport":{"S":[[2018,2022]],"SE":[[2018,2022]],"SES":[[2018,2022]],"Titanium":[[2018,2022]]},
+  "Edge":{"SE":[[2007,2025]],"SEL":[[2007,2025]],"Titanium":[[2011,2025]],"ST":[[2019,2023]],"ST-Line":[[2022,2025]]},
+  "Escape":{"S":[[2001,2025]],"SE":[[2001,2025]],"SEL":[[2013,2025]],"Titanium":[[2011,2025]],"Hybrid SE":[[2020,2025]],"Hybrid Titanium":[[2020,2025]],"PHEV":[[2021,2025]]},
+  "Escort":{"Base":[[1981,2004]],"LX":[[1984,2004]],"GT":[[1984,2002]],"ZX2":[[1998,2004]]},
+  "Excursion":{"XLT":[[2000,2005]],"Limited":[[2000,2005]],"Eddie Bauer":[[2000,2005]]},
+  "Expedition":{"XLT":[[1997,2025]],"Limited":[[1997,2025]],"King Ranch":[[2003,2025]],"Platinum":[[2015,2025]],"Timberline":[[2022,2025]],"Stealth":[[2022,2025]]},
+  "Explorer":{"Base":[[1991,2025]],"XLT":[[1991,2025]],"Limited":[[1996,2025]],"Sport":[[1993,2025]],"ST":[[2020,2025]],"King Ranch":[[2020,2025]],"Platinum":[[2020,2025]],"Timberline":[[2022,2025]]},
+  "Explorer Sport Trac":{"XLS":[[2001,2010]],"XLT":[[2001,2010]],"Limited":[[2001,2010]],"Adrenalin":[[2007,2010]]},
+  "F-100":{"Base":[[1970,1983]],"Custom":[[1970,1983]],"Ranger":[[1970,1983]]},
+  "F-150":{"XL":[[1975,2025]],"XLT":[[1975,2025]],"Lariat":[[1990,2025]],"King Ranch":[[2001,2025]],"Platinum":[[2009,2025]],"Limited":[[2013,2025]],"Raptor":[[2010,2025]],"Raptor R":[[2023,2025]],"Lightning":[[2022,2025]]},
+  "F-250":{"XL":[[1970,2025]],"XLT":[[1970,2025]],"Lariat":[[1990,2025]],"King Ranch":[[2001,2025]],"Platinum":[[2009,2025]],"Limited":[[2016,2025]],"Tremor":[[2020,2025]]},
+  "F-350":{"XL":[[1970,2025]],"XLT":[[1970,2025]],"Lariat":[[1990,2025]],"King Ranch":[[2001,2025]],"Platinum":[[2009,2025]],"Limited":[[2016,2025]]},
+  "F-450":{"XL":[[1999,2025]],"XLT":[[1999,2025]],"Lariat":[[1999,2025]],"King Ranch":[[2001,2025]],"Platinum":[[2011,2025]],"Limited":[[2017,2025]]},
+  "Fairmont":{"Base":[[1978,1983]],"Futura":[[1980,1983]]},
+  "Festiva":{"Base":[[1988,1993]],"GL":[[1988,1993]],"L":[[1988,1993]]},
+  "Fiesta":{"Base":[[1978,1980],[2011,2019]],"SE":[[2011,2019]],"SEL":[[2011,2019]],"Titanium":[[2011,2019]],"ST":[[2014,2019]]},
+  "Five Hundred":{"SE":[[2005,2007]],"SEL":[[2005,2007]],"Limited":[[2005,2007]]},
+  "Flex":{"SE":[[2009,2019]],"SEL":[[2009,2019]],"Limited":[[2009,2019]],"EcoBoost":[[2010,2019]]},
+  "Focus":{"S":[[2000,2018]],"SE":[[2000,2018]],"SEL":[[2000,2018]],"Titanium":[[2012,2018]],"ST":[[2013,2018]],"RS":[[2016,2018]],"Electric":[[2012,2018]]},
+  "Freestar":{"Value":[[2004,2007]],"SE":[[2004,2007]],"SEL":[[2004,2007]],"Limited":[[2004,2007]]},
+  "Fusion":{"S":[[2006,2020]],"SE":[[2006,2020]],"SEL":[[2012,2020]],"Titanium":[[2013,2020]],"Sport":[[2017,2019]],"Hybrid SE":[[2010,2020]],"Hybrid Titanium":[[2013,2020]],"Energi SE":[[2013,2019]],"Energi Titanium":[[2013,2019]]},
+  "GT":{"Base":[[2005,2006],[2017,2022]]},
+  "Granada":{"Base":[[1975,1982]],"Ghia":[[1975,1982]],"GL":[[1981,1982]]},
+  "LTD":{"Base":[[1970,1986]],"Brougham":[[1973,1986]],"Crown Victoria":[[1980,1982]]},
+  "LTD Crown Victoria":{"S":[[1983,1991]],"L":[[1983,1991]],"LX":[[1988,1991]]},
+  "Maverick (Classic)":{"Base":[[1970,1977]],"Sprint":[[1971,1977]],"Grabber":[[1970,1973]]},
+  "Maverick":{"XL":[[2022,2025]],"XLT":[[2022,2025]],"Lariat":[[2022,2025]],"Tremor":[[2023,2025]]},
+  "Mustang":{"EcoBoost":[[2015,2025]],"EcoBoost Premium":[[2015,2025]],"GT":[[1970,2025]],"GT Premium":[[2004,2025]],"Mach 1":[[1970,1973],[2021,2022]],"Shelby GT350":[[2015,2020]],"Shelby GT350R":[[2015,2020]],"Shelby GT500":[[1969,1970],[2007,2014],[2019,2025]],"Dark Horse":[[2024,2025]],"Boss 302":[[1970,1970],[2012,2013]]},
+  "Mustang Mach-E":{"Select":[[2021,2025]],"Premium":[[2021,2025]],"California Route 1":[[2021,2025]],"GT":[[2021,2025]],"GT Performance":[[2021,2025]]},
+  "Pinto":{"Base":[[1971,1980]],"Runabout":[[1971,1980]],"Squire":[[1972,1980]]},
+  "Probe":{"Base":[[1989,1997]],"GT":[[1989,1997]],"LX":[[1993,1997]]},
+  "Ranchero":{"Base":[[1970,1979]],"Squire":[[1970,1979]],"GT":[[1970,1979]]},
+  "Ranger":{"XL":[[1983,2011],[2019,2025]],"XLT":[[1983,2011],[2019,2025]],"Lariat":[[1998,2025]],"Sport":[[1983,2011]],"Tremor":[[2021,2025]],"Raptor":[[2019,2025]]},
+  "Taurus":{"L":[[1986,2019]],"GL":[[1986,2007]],"LX":[[1986,1999]],"SE":[[1992,2019]],"SEL":[[2008,2019]],"SHO":[[1989,2019]],"Limited":[[2008,2019]],"XL":[[2010,2019]]},
+  "Tempo":{"L":[[1984,1994]],"GL":[[1984,1994]],"GLS":[[1988,1994]],"LX":[[1992,1994]]},
+  "Thunderbird":{"Base":[[1970,1997],[2002,2005]],"Deluxe":[[1970,1976]],"Town Landau":[[1976,1982]],"Premium":[[2002,2005]]},
+  "Torino":{"Base":[[1970,1976]],"Brougham":[[1970,1976]],"Gran Torino":[[1972,1976]],"GT":[[1970,1971]],"Cobra":[[1970,1971]]},
+  "Transit":{"XL":[[2015,2025]],"XLT":[[2015,2025]],"Limited":[[2015,2025]],"Connect XL":[[2010,2025]],"Connect XLT":[[2010,2025]],"Connect Titanium":[[2015,2025]]},
+  "Transit Connect":{"XL":[[2010,2025]],"XLT":[[2010,2025]],"Titanium":[[2015,2025]]},
+  "Windstar":{"Base":[[1995,2003]],"GL":[[1995,2003]],"LX":[[1995,2003]],"SE":[[1999,2003]],"SEL":[[1999,2003]],"Limited":[[1999,2003]]}
+},
+"Genesis":{
+  "G70":{"2.0T":[[2019,2025]],"3.3T":[[2019,2025]],"3.3T Sport":[[2019,2025]],"3.3T Sport Prestige":[[2019,2025]]},
+  "G80":{"Advanced":[[2017,2025]],"Advanced AWD":[[2017,2025]],"Sport":[[2017,2025]],"Sport Prestige":[[2017,2025]],"Electrified":[[2023,2025]]},
+  "G90":{"Premium":[[2017,2025]],"Ultimate":[[2017,2025]]},
+  "GV60":{"Standard":[[2023,2025]],"Advanced":[[2023,2025]],"Performance":[[2023,2025]]},
+  "GV70":{"Advanced":[[2022,2025]],"Prestige":[[2022,2025]],"Sport":[[2022,2025]],"Sport Prestige":[[2022,2025]],"Electrified Advanced":[[2023,2025]],"Electrified Sport Prestige":[[2023,2025]]},
+  "GV80":{"Advanced":[[2021,2025]],"Advanced AWD":[[2021,2025]],"Prestige":[[2021,2025]],"Prestige Sport":[[2022,2025]],"Sport Prestige":[[2022,2025]]}
+},
+"GMC":{
+  "Acadia":{"SL":[[2007,2025]],"SLE":[[2007,2025]],"SLT":[[2007,2025]],"AT4":[[2020,2025]],"Denali":[[2007,2025]],"Elevation":[[2019,2025]]},
+  "Canyon":{"Base / WT":[[2004,2025]],"SLE":[[2004,2025]],"SLT":[[2004,2025]],"AT4":[[2016,2025]],"Denali":[[2015,2025]],"AT4X":[[2023,2025]]},
+  "Envoy":{"SLE":[[1998,2009]],"SLT":[[1998,2009]],"Denali":[[2002,2009]],"XL":[[2002,2006]],"XUV":[[2004,2005]]},
+  "Jimmy":{"Base":[[1970,2005]],"SLE":[[1991,2005]],"SLT":[[1998,2005]],"Envoy":[[1998,2001]]},
+  "Safari":{"SL":[[1985,2005]],"SLE":[[1985,2005]],"SLT":[[1994,2005]]},
+  "Savana 1500/2500/3500":{"WT":[[1996,2025]],"LS":[[1996,2025]],"LT":[[2003,2025]]},
+  "Sierra 1500":{"Pro":[[1999,2025]],"SLE":[[1999,2025]],"SLT":[[1999,2025]],"AT4":[[2019,2025]],"Denali":[[1999,2025]],"AT4X":[[2022,2025]],"Denali Ultimate":[[2022,2025]]},
+  "Sierra 2500HD":{"Pro":[[2001,2025]],"SLE":[[2001,2025]],"SLT":[[2001,2025]],"AT4":[[2019,2025]],"Denali":[[2001,2025]]},
+  "Sierra 3500HD":{"Pro":[[2001,2025]],"SLE":[[2001,2025]],"SLT":[[2001,2025]],"AT4":[[2019,2025]],"Denali":[[2001,2025]]},
+  "S-15 / Sonoma":{"Base":[[1982,2004]],"SLE":[[1982,2004]],"SLS":[[1994,2004]],"Syclone":[[1991,1991]]},
+  "Terrain":{"SL":[[2010,2025]],"SLE":[[2010,2025]],"SLT":[[2010,2025]],"AT4":[[2021,2025]],"Denali":[[2010,2025]]},
+  "Yukon":{"SLE":[[1992,2025]],"SLT":[[1992,2025]],"AT4":[[2015,2025]],"Denali":[[1999,2025]]},
+  "Yukon XL":{"SLE":[[1999,2025]],"SLT":[[1999,2025]],"AT4":[[2015,2025]],"Denali":[[2000,2025]]},
+  "Syclone":{"Base":[[1991,1993]]},
+  "Typhoon":{"Base":[[1991,1993]]}
+},
+"Honda":{
+  "Accord":{"LX":[[1976,2025]],"Sport":[[2013,2025]],"EX":[[1985,2025]],"EX-L":[[2003,2025]],"Touring":[[2013,2025]],"Hybrid":[[2014,2025]],"Hybrid Sport":[[2021,2025]],"Hybrid Touring":[[2021,2025]]},
+  "Civic":{"LX":[[1973,2025]],"Sport":[[2016,2025]],"EX":[[1988,2025]],"EX-L":[[2013,2025]],"Touring":[[2016,2025]],"Hatchback":[[1988,1991],[2022,2025]],"Si":[[1986,2025]]},
+  "Civic Type R":{"Base":[[2017,2025]],"Limited Edition":[[2021,2021]]},
+  "CR-V":{"LX":[[1997,2025]],"EX":[[1997,2025]],"EX-L":[[2002,2025]],"Touring":[[2015,2025]],"Sport":[[2020,2025]],"Hybrid":[[2020,2025]],"Hybrid Sport":[[2023,2025]]},
+  "CR-Z":{"Base":[[2011,2016]],"EX":[[2011,2016]]},
+  "CRX":{"Base":[[1984,1991]],"HF":[[1984,1991]],"Si":[[1985,1991]]},
+  "Crosstour":{"EX":[[2010,2015]],"EX-L":[[2010,2015]]},
+  "del Sol":{"S":[[1993,1997]],"Si":[[1993,1997]],"VTEC":[[1995,1997]]},
+  "Element":{"LX":[[2003,2011]],"EX":[[2003,2011]],"SC":[[2007,2008]]},
+  "Fit":{"Sport":[[2007,2020]],"LX":[[2007,2020]],"EX":[[2009,2020]],"EX-L":[[2013,2020]]},
+  "HR-V":{"LX":[[2016,2025]],"Sport":[[2016,2025]],"EX":[[2016,2025]],"EX-L":[[2016,2022]],"Touring":[[2022,2025]]},
+  "Insight":{"Base":[[2000,2006]],"LX":[[2010,2022]],"EX":[[2010,2022]],"Touring":[[2019,2022]]},
+  "Integra":{"Base":[[2023,2025]],"A-Spec":[[2023,2025]],"Type S":[[2024,2025]]},
+  "Legend":{"Base":[[1986,1995]],"L":[[1986,1995]],"LS":[[1989,1995]]},
+  "Odyssey":{"LX":[[1995,2025]],"EX":[[1995,2025]],"EX-L":[[2002,2025]],"Touring":[[2005,2025]],"Elite":[[2017,2025]]},
+  "Passport":{"LX":[[1994,2002]],"EX":[[1994,2002]],"Sport":[[2019,2025]],"EX-L":[[2019,2025]],"Touring":[[2019,2025]],"Elite":[[2019,2025]],"TrailSport":[[2022,2025]]},
+  "Pilot":{"LX":[[2003,2025]],"EX":[[2003,2025]],"EX-L":[[2003,2025]],"Touring":[[2006,2025]],"Elite":[[2017,2025]],"TrailSport":[[2022,2025]],"Black Edition":[[2022,2025]]},
+  "Prelude":{"Base":[[1979,2001]],"Si":[[1988,2001]],"VTEC":[[1993,2001]]},
+  "Prologue":{"EX":[[2024,2025]],"EX-L":[[2024,2025]],"Touring":[[2024,2025]],"Elite":[[2024,2025]]},
+  "Ridgeline":{"Sport":[[2006,2025]],"RTL":[[2006,2025]],"RTL-E":[[2017,2025]],"RTL-T":[[2017,2025]],"Black Edition":[[2017,2025]],"TrailSport":[[2022,2025]]},
+  "S2000":{"Base":[[2000,2009]],"CR":[[2008,2009]]},
+  "ZR-V":{"Sport":[[2023,2025]],"EX":[[2023,2025]],"EX-L":[[2023,2025]],"Touring":[[2023,2025]]}
+},
+"Hyundai":{
+  "Accent":{"GLS":[[1995,2025]],"SE":[[2012,2025]],"Value Edition":[[2016,2020]],"Limited":[[2012,2020]]},
+  "Azera":{"GLS":[[2006,2017]],"Limited":[[2006,2017]],"Sport":[[2012,2017]]},
+  "Elantra":{"SE":[[1992,2025]],"SEL":[[2017,2025]],"N Line":[[2020,2025]],"Limited":[[2013,2025]],"Hybrid":[[2021,2025]]},
+  "Elantra N":{"Base":[[2022,2025]]},
+  "Entourage":{"Base":[[2007,2009]],"GLS":[[2007,2009]]},
+  "Equus":{"Signature":[[2011,2016]],"Ultimate":[[2011,2016]]},
+  "Excel":{"Base":[[1986,1994]],"GLS":[[1988,1994]]},
+  "Genesis (sedan)":{"3.8":[[2009,2016]],"5.0 R-Spec":[[2012,2016]]},
+  "Genesis Coupe":{"2.0T":[[2010,2016]],"3.8":[[2010,2016]],"R-Spec":[[2010,2016]]},
+  "Ioniq":{"Blue":[[2017,2022]],"Hybrid":[[2017,2022]],"SEL":[[2017,2022]],"Limited":[[2017,2022]],"Electric":[[2017,2022]]},
+  "Ioniq 5":{"SE Standard Range":[[2022,2025]],"SE":[[2022,2025]],"SEL":[[2022,2025]],"Limited":[[2022,2025]],"N":[[2024,2025]]},
+  "Ioniq 6":{"SE Standard Range":[[2023,2025]],"SE":[[2023,2025]],"SEL":[[2023,2025]],"Limited":[[2023,2025]]},
+  "Kona":{"SE":[[2018,2025]],"SEL":[[2018,2025]],"N Line":[[2020,2025]],"Limited":[[2018,2025]],"N":[[2022,2025]]},
+  "Kona Electric":{"SEL":[[2019,2025]],"Limited":[[2019,2025]]},
+  "Palisade":{"SE":[[2020,2025]],"SEL":[[2020,2025]],"XRT":[[2022,2025]],"Limited":[[2020,2025]],"Calligraphy":[[2021,2025]]},
+  "Santa Cruz":{"SE":[[2022,2025]],"SEL":[[2022,2025]],"SEL Premium":[[2022,2025]],"Limited":[[2022,2025]],"XRT":[[2022,2025]]},
+  "Santa Fe":{"GLS":[[2001,2018]],"SE":[[2009,2025]],"SEL":[[2019,2025]],"XRT":[[2022,2025]],"Limited":[[2013,2025]],"Calligraphy":[[2021,2025]],"Hybrid":[[2021,2025]]},
+  "Scoupe":{"Base":[[1991,1995]],"LS":[[1991,1995]]},
+  "Sonata":{"GLS":[[1989,2019]],"SE":[[2011,2025]],"SEL":[[2019,2025]],"N Line":[[2020,2025]],"Limited":[[2011,2025]],"Sport":[[2015,2025]]},
+  "Sonata Hybrid":{"SE":[[2011,2025]],"SEL":[[2019,2025]],"Limited":[[2011,2025]],"Blue":[[2011,2025]]},
+  "Tiburon":{"Base":[[1997,2008]],"GT":[[2003,2008]],"GS":[[2003,2008]],"SE":[[2003,2008]]},
+  "Tucson":{"GL":[[2005,2015]],"GLS":[[2005,2018]],"SE":[[2016,2025]],"N Line":[[2022,2025]],"Limited":[[2013,2025]],"Hybrid":[[2022,2025]],"PHEV":[[2022,2025]]},
+  "Veloster":{"Base":[[2012,2021]],"Turbo":[[2012,2021]],"Value Edition":[[2016,2019]]},
+  "Veloster N":{"Base":[[2019,2021]],"Performance Package":[[2019,2021]]},
+  "Venue":{"SE":[[2020,2025]],"SEL":[[2020,2025]],"Denim":[[2020,2025]]},
+  "XG300 / XG350":{"XG300":[[2001,2002]],"XG350":[[2003,2005]],"XG350 L":[[2003,2005]]}
+},
+"Infiniti":{
+  "EX":{"EX35":[[2008,2012]],"EX37":[[2013,2013]]},
+  "FX":{"FX35":[[2003,2013]],"FX37":[[2013,2013]],"FX45":[[2003,2008]],"FX50":[[2009,2013]]},
+  "G20":{"Base":[[1991,2002]]},
+  "G35":{"Sedan":[[2003,2006]],"Coupe":[[2003,2007]],"Sport":[[2003,2007]],"x AWD":[[2004,2006]]},
+  "G37":{"Sedan":[[2009,2013]],"Coupe":[[2008,2013]],"Convertible":[[2009,2013]],"x AWD":[[2009,2013]],"Sport":[[2008,2013]],"IPL":[[2011,2013]]},
+  "I30":{"Base":[[1996,2001]],"t":[[1999,2001]]},
+  "J30":{"Base":[[1993,1997]],"t":[[1993,1997]]},
+  "M":{"M35":[[2003,2013]],"M37":[[2011,2013]],"M45":[[2003,2013]],"M56":[[2011,2013]],"M35h Hybrid":[[2012,2013]]},
+  "Q45":{"Base":[[1990,2006]],"Premium":[[2002,2006]]},
+  "Q50":{"Pure":[[2014,2025]],"Luxe":[[2014,2025]],"Sensory":[[2017,2025]],"Red Sport 400":[[2016,2025]]},
+  "Q60":{"Pure":[[2017,2025]],"Luxe":[[2017,2025]],"Red Sport 400":[[2017,2025]],"Project Black S":[[2019,2019]]},
+  "Q70 / M":{"Q70":[[2014,2019]],"Q70L":[[2014,2015]]},
+  "QX4":{"Base":[[1997,2003]]},
+  "QX30":{"Base":[[2017,2019]],"Sport":[[2017,2019]]},
+  "QX50":{"Base":[[2003,2017],[2019,2025]],"Luxe":[[2019,2025]],"Essential":[[2019,2025]],"Sensory":[[2019,2025]],"Autograph":[[2019,2025]]},
+  "QX55":{"Essential":[[2022,2025]],"Sensory":[[2022,2025]],"Autograph":[[2022,2025]]},
+  "QX56":{"Base":[[2004,2013]],"Deluxe Touring":[[2008,2013]]},
+  "QX60":{"Base":[[2014,2025]],"Pure":[[2014,2025]],"Luxe":[[2014,2025]],"Sensory":[[2014,2025]],"Autograph":[[2021,2025]]},
+  "QX70 / FX":{"Base":[[2014,2017]],"Sport":[[2014,2017]]},
+  "QX80":{"Base":[[2014,2025]],"Luxe":[[2019,2025]],"Sensory":[[2019,2025]],"Autograph":[[2021,2025]]}
+},
+"Isuzu":{
+  "Amigo":{"Base":[[1989,2000]],"S":[[1989,2000]],"LS":[[1992,2000]]},
+  "Ascender":{"S":[[2003,2008]],"LS":[[2003,2008]],"Limited":[[2004,2008]]},
+  "Axiom":{"XS":[[2002,2004]],"XL":[[2002,2004]]},
+  "I-Series Pickup":{"i-280":[[2006,2008]],"i-290":[[2007,2008]],"i-370":[[2008,2008]]},
+  "Impulse / Piazza":{"Base":[[1983,1993]],"Turbo":[[1986,1991]],"XS":[[1990,1993]]},
+  "Pickup / P'UP":{"S":[[1981,1997]],"LS":[[1989,1997]],"Space Cab":[[1983,1997]]},
+  "Rodeo":{"S":[[1991,2004]],"LS":[[1991,2004]],"LSE":[[1999,2004]]},
+  "Stylus":{"S":[[1990,1993]],"XS":[[1990,1993]]},
+  "Trooper":{"S":[[1984,2002]],"LS":[[1984,2002]],"Limited":[[1992,2002]]},
+  "VehiCROSS":{"Base":[[1999,2001]],"FWD":[[1999,2001]]}
+},
+"Jaguar":{
+  "E-Pace":{"S":[[2018,2025]],"SE":[[2018,2025]],"R-Dynamic SE":[[2021,2025]],"R-Dynamic HSE":[[2021,2025]]},
+  "F-Pace":{"S":[[2017,2025]],"SE":[[2017,2025]],"R-Dynamic SE":[[2021,2025]],"SVR":[[2017,2025]],"First Edition":[[2021,2021]]},
+  "F-Type":{"Base":[[2014,2025]],"S":[[2014,2025]],"R":[[2014,2025]],"SVR":[[2016,2025]],"R-Dynamic":[[2020,2025]],"R-Dynamic SE":[[2020,2025]]},
+  "I-Pace":{"S":[[2019,2025]],"SE":[[2019,2025]],"HSE":[[2019,2025]],"EV400":[[2019,2025]]},
+  "S-Type":{"3.0":[[2000,2008]],"4.2":[[2003,2008]],"R":[[2003,2008]]},
+  "X-Type":{"2.5":[[2002,2009]],"3.0":[[2002,2009]],"Sport":[[2002,2009]]},
+  "XE":{"S":[[2016,2025]],"SE":[[2016,2025]],"R-Dynamic":[[2018,2025]],"R-Dynamic SE":[[2018,2025]],"Checkered Flag":[[2019,2019]]},
+  "XF":{"S":[[2009,2025]],"Premium":[[2009,2020]],"Portfolio":[[2009,2016]],"R-Sport":[[2013,2020]],"Sportbrake":[[2018,2025]]},
+  "XJ":{"Base":[[1970,2019]],"L":[[2010,2019]],"XJL Portfolio":[[2014,2019]],"XJR575":[[2017,2019]]},
+  "XJS":{"Base":[[1975,1996]],"XJ-SC":[[1983,1988]],"Convertible":[[1988,1996]]},
+  "XK / XKR":{"XK8 Coupe":[[1996,2006]],"XK8 Convertible":[[1996,2006]],"XKR Coupe":[[1998,2014]],"XKR Convertible":[[1998,2014]],"XKR-S":[[2012,2014]]}
+},
+"Jeep":{
+  "Cherokee":{"Sport":[[1974,2025]],"Latitude":[[2014,2025]],"Trailhawk":[[2014,2025]],"Limited":[[1993,2025]],"Overland":[[2014,2025]],"High Altitude":[[2022,2025]]},
+  "CJ-5":{"Base":[[1970,1983]],"Renegade":[[1970,1983]]},
+  "CJ-7":{"Base":[[1976,1986]],"Laredo":[[1980,1986]],"Golden Eagle":[[1977,1981]]},
+  "Commander":{"Sport":[[2006,2010]],"Limited":[[2006,2010]],"Overland":[[2006,2010]]},
+  "Compass":{"Sport":[[2007,2025]],"Latitude":[[2007,2025]],"Trailhawk":[[2017,2025]],"Limited":[[2007,2025]],"High Altitude":[[2022,2025]]},
+  "Gladiator":{"Sport":[[2020,2025]],"Sport S":[[2020,2025]],"Overland":[[2020,2025]],"Mojave":[[2020,2025]],"Rubicon":[[2020,2025]],"High Altitude":[[2022,2025]]},
+  "Grand Cherokee":{"Laredo":[[1993,2025]],"Altitude":[[2012,2025]],"Limited":[[1993,2025]],"Trailhawk":[[2014,2025]],"Overland":[[1993,2025]],"Summit":[[2011,2025]],"SRT":[[2012,2025]],"Trackhawk":[[2018,2022]],"4xe":[[2022,2025]]},
+  "Grand Cherokee L":{"Laredo":[[2021,2025]],"Limited":[[2021,2025]],"Overland":[[2021,2025]],"Summit":[[2021,2025]],"Summit Reserve":[[2021,2025]]},
+  "Grand Wagoneer":{"Base":[[1970,1991],[2022,2025]],"Series I":[[2022,2025]],"Series II":[[2022,2025]],"Series III":[[2022,2025]]},
+  "Liberty":{"Sport":[[2002,2012]],"Limited":[[2002,2012]],"Renegade":[[2002,2007]]},
+  "Patriot":{"Sport":[[2007,2017]],"Latitude":[[2007,2017]],"Limited":[[2007,2017]]},
+  "Renegade":{"Sport":[[2015,2025]],"Latitude":[[2015,2025]],"Trailhawk":[[2015,2025]],"Limited":[[2015,2025]],"Islander":[[2020,2025]]},
+  "Scrambler":{"Base":[[1981,1985]],"Laredo":[[1984,1985]]},
+  "Wagoneer":{"Base":[[1970,1991]],"Series I":[[2022,2025]],"Series II":[[2022,2025]],"Series III":[[2022,2025]]},
+  "Wrangler":{"Sport":[[1987,2025]],"Sport S":[[2018,2025]],"Willys":[[2020,2025]],"Sahara":[[1987,2025]],"Rubicon":[[2003,2025]],"4xe":[[2021,2025]],"392":[[2021,2025]],"Unlimited Sport":[[2004,2025]],"Unlimited Rubicon":[[2004,2025]]}
+},
+"Kia":{
+  "Borrego":{"LX":[[2009,2011]],"EX":[[2009,2011]]},
+  "Cadenza":{"Base":[[2014,2025]],"Premium":[[2014,2025]],"Technology":[[2014,2025]]},
+  "Carnival":{"LX":[[2022,2025]],"EX":[[2022,2025]],"SX":[[2022,2025]],"SX Prestige":[[2022,2025]]},
+  "EV6":{"Light":[[2022,2025]],"Wind":[[2022,2025]],"GT-Line":[[2022,2025]],"GT":[[2023,2025]]},
+  "EV9":{"Light":[[2024,2025]],"Wind":[[2024,2025]],"Land":[[2024,2025]],"GT-Line":[[2024,2025]]},
+  "Forte":{"FE":[[2010,2025]],"LX":[[2010,2025]],"LXS":[[2020,2025]],"GT-Line":[[2017,2025]],"EX":[[2010,2025]],"GT":[[2018,2025]]},
+  "K5":{"LXS":[[2021,2025]],"GT-Line":[[2021,2025]],"EX":[[2021,2025]],"GT":[[2021,2025]]},
+  "Niro":{"FE":[[2017,2025]],"LX":[[2017,2025]],"EX":[[2017,2025]],"Touring":[[2017,2025]],"Hybrid":[[2017,2025]],"Plug-in Hybrid":[[2018,2025]]},
+  "Niro EV":{"EX":[[2019,2025]],"EX Premium":[[2019,2025]],"Wind":[[2023,2025]],"Wave":[[2023,2025]]},
+  "Optima":{"LX":[[2001,2020]],"EX":[[2001,2020]],"SX":[[2011,2020]],"SXL":[[2015,2020]]},
+  "Rio":{"LX":[[2001,2025]],"S":[[2012,2025]],"EX":[[2001,2020]]},
+  "Sedona":{"L":[[2015,2021]],"LX":[[2015,2021]],"EX":[[2015,2021]],"SX":[[2015,2021]],"SXL":[[2015,2021]]},
+  "Sephia":{"Base":[[1994,2001]],"LS":[[1994,2001]]},
+  "Sorento":{"LX":[[2003,2025]],"EX":[[2003,2025]],"SX":[[2011,2025]],"SX Limited":[[2015,2025]],"X-Line":[[2021,2025]],"Hybrid":[[2021,2025]],"PHEV":[[2022,2025]]},
+  "Soul":{"Base":[[2010,2025]],"Plus":[[2010,2025]],"EX":[[2017,2025]],"X-Line":[[2020,2025]],"Turbo":[[2013,2025]]},
+  "Soul EV":{"Base":[[2015,2025]],"EX":[[2019,2025]]},
+  "Spectra":{"Base":[[2000,2009]],"LX":[[2000,2009]],"EX":[[2000,2009]],"SX":[[2006,2009]]},
+  "Sportage":{"LX":[[1995,2025]],"EX":[[1998,2025]],"SX":[[2011,2025]],"X-Line":[[2022,2025]],"X-Pro":[[2023,2025]],"Hybrid":[[2022,2025]]},
+  "Stinger":{"GT":[[2018,2023]],"GT-Line":[[2018,2023]],"GT1":[[2018,2023]],"GT2":[[2018,2023]]},
+  "Telluride":{"LX":[[2020,2025]],"S":[[2020,2025]],"EX":[[2020,2025]],"X-Pro":[[2022,2025]],"SX":[[2020,2025]],"SX Prestige":[[2020,2025]],"X-Pro S":[[2023,2025]]}
+},
+"Lamborghini":{
+  "Aventador":{"LP 700-4":[[2012,2015]],"LP 720-4":[[2013,2014]],"LP 750-4 SV":[[2015,2017]],"S":[[2017,2022]],"SVJ":[[2019,2022]],"LP 780-4 Ultimae":[[2022,2022]]},
+  "Countach":{"LP 400":[[1974,1977]],"LP 400 S":[[1978,1982]],"LP 500 S":[[1982,1984]],"LP 5000 QV":[[1985,1988]],"25th Anniversary":[[1988,1990]],"LPI 800-4 (2022)":[[2022,2022]]},
+  "Diablo":{"Base":[[1990,1994]],"VT":[[1993,2001]],"SV":[[1995,1998]],"GT":[[1999,2000]],"VT 6.0":[[1999,2001]]},
+  "Gallardo":{"Base":[[2004,2008]],"Superleggera":[[2007,2008]],"LP 560-4":[[2008,2013]],"LP 570-4 Superleggera":[[2011,2012]],"LP 550-2":[[2010,2013]],"Spyder":[[2006,2013]]},
+  "Huracan":{"LP 610-4":[[2014,2019]],"LP 580-2":[[2015,2019]],"EVO":[[2019,2025]],"EVO Spyder":[[2019,2025]],"EVO RWD":[[2021,2025]],"STO":[[2021,2025]],"Tecnica":[[2022,2025]],"Sterrato":[[2023,2025]]},
+  "Jalpa":{"Base":[[1981,1988]]},
+  "Murcielago":{"Base":[[2002,2005]],"LP 640":[[2006,2010]],"LP 650-4 Roadster":[[2010,2010]],"LP 670-4 SV":[[2009,2010]]},
+  "Revuelto":{"Base":[[2024,2025]]},
+  "Urus":{"Base":[[2019,2022]],"Urus S":[[2023,2025]],"Urus Performante":[[2023,2025]],"Pearl Capsule":[[2021,2022]]},
+  "Sian":{"FKP 37":[[2020,2021]],"Roadster":[[2020,2021]]}
+},
+"Land Rover":{
+  "Defender":{"90 S":[[1993,2016],[2020,2025]],"90 X-Dynamic SE":[[2020,2025]],"90 X":[[2020,2025]],"110 S":[[1993,2016],[2020,2025]],"110 X-Dynamic SE":[[2020,2025]],"110 SE":[[2020,2025]],"110 X":[[2020,2025]],"110 V8":[[2021,2025]],"130 SE":[[2023,2025]]},
+  "Discovery":{"S":[[1994,2025]],"SE":[[1994,2025]],"HSE":[[1994,2025]],"R-Dynamic SE":[[2020,2025]],"R-Dynamic HSE":[[2020,2025]],"Metropolitan":[[2022,2025]]},
+  "Discovery Sport":{"S":[[2015,2025]],"SE":[[2015,2025]],"HSE":[[2015,2025]],"R-Dynamic SE":[[2020,2025]],"R-Dynamic HSE":[[2020,2025]]},
+  "Freelander / LR2":{"Base":[[2002,2005]],"SE":[[2005,2015]],"HSE":[[2005,2015]]},
+  "LR4":{"Base":[[2010,2016]],"HSE":[[2010,2016]],"HSE Luxury":[[2015,2016]]},
+  "Range Rover":{"S":[[1987,2025]],"SE":[[2003,2025]],"HSE":[[2003,2025]],"Autobiography":[[2013,2025]],"SV":[[2022,2025]],"SV Bespoke":[[2023,2025]]},
+  "Range Rover Evoque":{"S":[[2012,2025]],"SE":[[2012,2025]],"HSE":[[2012,2025]],"R-Dynamic SE":[[2020,2025]],"Autobiography":[[2017,2025]]},
+  "Range Rover Sport":{"S":[[2006,2025]],"SE":[[2006,2025]],"HSE":[[2006,2025]],"HSE Dynamic":[[2014,2025]],"Autobiography":[[2013,2025]],"SVR":[[2015,2025]]},
+  "Range Rover Velar":{"S":[[2018,2025]],"SE":[[2018,2025]],"HSE":[[2018,2025]],"R-Dynamic SE":[[2018,2025]],"R-Dynamic HSE":[[2018,2025]],"SV":[[2023,2025]]}
+},
+"Lexus":{
+  "CT 200h":{"Base":[[2011,2021]],"F Sport":[[2014,2021]],"Luxury":[[2014,2021]]},
+  "ES":{"ES 250":[[2019,2025]],"ES 300h":[[2013,2025]],"ES 350":[[2007,2025]],"ES 350 F Sport":[[2014,2025]],"ES 300":[[1990,2003]]},
+  "GS":{"GS 300":[[1993,2011]],"GS 350":[[2007,2020]],"GS 430":[[1998,2011]],"GS 450h":[[2007,2018]],"GS 460":[[2008,2012]],"GS F":[[2016,2020]]},
+  "GX":{"GX 470":[[2003,2009]],"GX 460":[[2010,2025]],"GX 460 Luxury":[[2010,2025]],"GX 460 Premium":[[2014,2025]]},
+  "IS":{"IS 200t":[[2016,2017]],"IS 250":[[2006,2015]],"IS 300":[[1999,2025]],"IS 350":[[2006,2025]],"IS 350 F Sport":[[2010,2025]],"IS 500 F Sport":[[2022,2025]]},
+  "LC":{"LC 500":[[2018,2025]],"LC 500 Convertible":[[2021,2025]],"LC 500h":[[2018,2025]]},
+  "LFA":{"Base":[[2011,2012]]},
+  "LS":{"LS 400":[[1990,2000]],"LS 430":[[2001,2006]],"LS 460":[[2007,2012]],"LS 460 L":[[2007,2012]],"LS 600h L":[[2008,2012]],"LS 500":[[2018,2025]],"LS 500 AWD":[[2018,2025]],"LS 500h":[[2018,2025]]},
+  "LX":{"LX 450":[[1996,1997]],"LX 470":[[1998,2007]],"LX 570":[[2008,2021]],"LX 600":[[2022,2025]]},
+  "NX":{"NX 200t":[[2015,2017]],"NX 300":[[2018,2021]],"NX 250":[[2022,2025]],"NX 350":[[2022,2025]],"NX 350h":[[2022,2025]],"NX 450h+":[[2022,2025]]},
+  "RC":{"RC 200t":[[2016,2018]],"RC 300":[[2015,2025]],"RC 350":[[2015,2025]],"RC F":[[2015,2025]],"RC F Track Edition":[[2020,2022]]},
+  "RX":{"RX 300":[[1998,2003]],"RX 330":[[2004,2006]],"RX 350":[[2007,2025]],"RX 350h":[[2023,2025]],"RX 400h":[[2006,2008]],"RX 450h":[[2009,2022]],"RX 500h F Sport":[[2023,2025]]},
+  "SC":{"SC 300":[[1992,2000]],"SC 400":[[1992,2000]],"SC 430":[[2002,2010]]},
+  "TX":{"TX 350":[[2024,2025]],"TX 500h F Sport":[[2024,2025]],"TX 550h+":[[2024,2025]]},
+  "UX":{"UX 200":[[2019,2022]],"UX 250h":[[2019,2025]],"UX 300e":[[2021,2025]]}
+},
+"Lincoln":{
+  "Aviator":{"Premiere":[[2003,2005],[2020,2025]],"Reserve":[[2020,2025]],"Black Label":[[2020,2025]],"Grand Touring":[[2020,2025]]},
+  "Blackwood":{"Base":[[2002,2003]]},
+  "Continental":{"Base":[[1970,2002],[2017,2020]],"Select":[[2017,2020]],"Reserve":[[2017,2020]],"Black Label":[[2017,2020]]},
+  "Corsair":{"Standard":[[2020,2025]],"Reserve":[[2020,2025]],"Black Label":[[2020,2025]],"Grand Touring":[[2021,2025]]},
+  "Mark III":{"Base":[[1970,1971]]},
+  "Mark IV":{"Base":[[1972,1976]]},
+  "Mark V":{"Base":[[1977,1979]],"Collector's Series":[[1979,1979]]},
+  "Mark VI":{"Base":[[1980,1983]]},
+  "Mark VII":{"Base":[[1984,1992]],"LSC":[[1984,1992]],"Bill Blass":[[1984,1992]]},
+  "Mark VIII":{"Base":[[1993,1998]],"LSC":[[1993,1998]]},
+  "MKC":{"Premiere":[[2015,2019]],"Select":[[2015,2019]],"Reserve":[[2015,2019]],"Black Label":[[2015,2019]]},
+  "MKS":{"Base":[[2009,2016]],"EcoBoost":[[2010,2016]]},
+  "MKT":{"Base":[[2010,2019]],"EcoBoost":[[2010,2019]]},
+  "MKX":{"Premiere":[[2007,2018]],"Reserve":[[2007,2018]],"Black Label":[[2015,2018]]},
+  "MKZ / Zephyr":{"Premiere":[[2006,2020]],"Select":[[2017,2020]],"Reserve":[[2006,2020]],"Black Label":[[2015,2020]],"Hybrid":[[2011,2020]]},
+  "Nautilus":{"Premiere":[[2019,2025]],"Select":[[2019,2025]],"Reserve":[[2019,2025]],"Black Label":[[2019,2025]]},
+  "Navigator":{"Premiere":[[1998,2025]],"Select":[[2015,2025]],"Reserve":[[2000,2025]],"Black Label":[[2015,2025]],"L":[[2007,2025]]},
+  "Town Car":{"Base":[[1980,2011]],"Signature":[[1993,2011]],"Cartier":[[1980,2002]],"Executive":[[1980,2011]]},
+  "Versailles":{"Base":[[1977,1980]]}
+},
+"Lucid":{
+  "Air":{"Pure":[[2022,2025]],"Touring":[[2022,2025]],"Grand Touring":[[2022,2025]],"Grand Touring Performance":[[2022,2025]],"Sapphire":[[2023,2025]]},
+  "Gravity":{"Touring":[[2025,2025]],"Grand Touring":[[2025,2025]],"Sapphire":[[2025,2025]]}
+},
+"Maserati":{
+  "Biturbo":{"Base":[[1984,1994]],"Spyder":[[1984,1994]],"425":[[1984,1988]]},
+  "GranTurismo":{"Sport":[[2008,2019],[2023,2025]],"S":[[2008,2019]],"MC":[[2012,2017]],"Modena":[[2023,2025]],"Trofeo":[[2023,2025]],"Folgore":[[2024,2025]]},
+  "Ghibli":{"Base":[[2014,2025]],"GranLusso":[[2018,2025]],"Modena":[[2021,2025]],"Trofeo":[[2019,2025]]},
+  "GranCabrio":{"Base":[[2011,2020],[2024,2025]],"Sport":[[2011,2020]],"MC":[[2013,2020]],"Modena":[[2024,2025]],"Trofeo":[[2024,2025]]},
+  "Grecale":{"GT":[[2023,2025]],"Modena":[[2023,2025]],"Trofeo":[[2023,2025]],"Folgore":[[2024,2025]]},
+  "Levante":{"Base":[[2017,2025]],"GranLusso":[[2018,2025]],"GranSport":[[2018,2025]],"Modena":[[2021,2025]],"Trofeo":[[2018,2025]]},
+  "MC20":{"Base":[[2022,2025]],"Cielo":[[2023,2025]],"Folgore":[[2024,2025]]},
+  "Quattroporte":{"Base":[[1994,2025]],"GTS":[[2004,2025]],"GranLusso":[[2018,2025]],"Modena":[[2021,2025]],"Trofeo":[[2019,2025]]}
+},
+"Mazda":{
+  "2":{"Base":[[2011,2014]],"Touring":[[2011,2014]]},
+  "3":{"S":[[2004,2025]],"Select":[[2014,2025]],"Preferred":[[2019,2025]],"Premium":[[2014,2025]],"Turbo":[[2021,2025]],"2.5 S":[[2004,2013]]},
+  "5":{"Sport":[[2006,2015]],"Touring":[[2006,2015]],"Grand Touring":[[2006,2015]]},
+  "6":{"Sport":[[2003,2025]],"Touring":[[2003,2025]],"Grand Touring":[[2007,2025]],"Signature":[[2018,2025]]},
+  "323 / Protege":{"Base":[[1985,2003]],"DX":[[1990,2003]],"LX":[[1990,2003]],"ES":[[1990,2003]],"Mazdaspeed":[[2003,2003]]},
+  "626":{"DX":[[1979,2002]],"LX":[[1979,2002]],"ES":[[1986,2002]]},
+  "808":{"Base":[[1972,1977]]},
+  "929":{"Base":[[1988,1995]],"S":[[1992,1995]]},
+  "B-Series":{"B2200":[[1985,1993]],"B2300":[[1994,2006]],"B2500":[[1994,1998]],"B3000":[[1994,2006]],"B4000":[[1994,2006]]},
+  "CX-3":{"Sport":[[2016,2021]],"Touring":[[2016,2021]],"Grand Touring":[[2016,2021]]},
+  "CX-5":{"Sport":[[2013,2025]],"Touring":[[2013,2025]],"Grand Touring":[[2013,2025]],"Grand Touring Reserve":[[2018,2025]],"Signature":[[2018,2025]],"2.5 Turbo":[[2021,2025]]},
+  "CX-7":{"Sport":[[2007,2012]],"Touring":[[2007,2012]],"Grand Touring":[[2007,2012]]},
+  "CX-9":{"Sport":[[2007,2025]],"Touring":[[2007,2025]],"Grand Touring":[[2007,2025]],"Carbon Edition":[[2021,2025]],"Signature":[[2017,2025]]},
+  "CX-30":{"S":[[2020,2025]],"Select":[[2020,2025]],"Preferred":[[2020,2025]],"Premium":[[2020,2025]],"Turbo":[[2021,2025]]},
+  "CX-50":{"S":[[2023,2025]],"Select":[[2023,2025]],"Preferred":[[2023,2025]],"Premium":[[2023,2025]],"Turbo Premium":[[2023,2025]]},
+  "CX-90":{"Select":[[2024,2025]],"Preferred":[[2024,2025]],"Premium":[[2024,2025]],"Premium Plus":[[2024,2025]],"Turbo":[[2024,2025]],"PHEV":[[2024,2025]]},
+  "GLC":{"Base":[[1981,1985]]},
+  "MX-5 Miata":{"Sport":[[1990,2025]],"Club":[[2006,2025]],"Grand Touring":[[2005,2025]],"RF Club":[[2017,2025]],"RF Grand Touring":[[2017,2025]]},
+  "Millenia":{"Base":[[1995,2002]],"S":[[1995,2002]],"P":[[2001,2002]]},
+  "MPV":{"Base":[[1989,2006]],"LX":[[1989,2006]],"ES":[[1989,2006]]},
+  "RX-7":{"Base":[[1979,1995]],"GS":[[1984,1991]],"GSL":[[1984,1991]],"Turbo":[[1987,1995]],"R2":[[1992,1995]]},
+  "RX-8":{"Sport":[[2004,2011]],"Touring":[[2004,2011]],"Grand Touring":[[2009,2011]],"R3":[[2009,2011]]},
+  "Speed3":{"Base":[[2007,2013]]},
+  "Speed6":{"Base":[[2006,2007]]},
+  "Tribute":{"DX":[[2001,2007]],"LX":[[2001,2011]],"ES":[[2001,2011]],"Hybrid":[[2005,2011]]}
+},
+"McLaren":{
+  "540C / 570S / 570GT":{"540C":[[2016,2020]],"570S":[[2016,2022]],"570GT":[[2017,2020]],"570S Spider":[[2017,2022]]},
+  "600LT":{"Coupe":[[2019,2020]],"Spider":[[2019,2020]]},
+  "650S":{"Coupe":[[2015,2017]],"Spider":[[2015,2017]]},
+  "675LT":{"Coupe":[[2016,2016]],"Spider":[[2016,2016]]},
+  "720S":{"Performance":[[2018,2025]],"Luxury":[[2018,2025]],"Spider":[[2019,2025]]},
+  "750S":{"Coupe":[[2024,2025]],"Spider":[[2024,2025]]},
+  "765LT":{"Coupe":[[2021,2022]],"Spider":[[2021,2022]]},
+  "Artura":{"Base":[[2023,2025]],"Performance":[[2023,2025]],"TechLux":[[2023,2025]],"Spider":[[2024,2025]]},
+  "Elva":{"Base":[[2021,2025]]},
+  "F1":{"Base":[[1994,1998]]},
+  "GT":{"Base":[[2020,2025]],"MSO":[[2020,2025]]},
+  "MP4-12C":{"Base":[[2012,2014]],"Spider":[[2012,2014]]},
+  "P1":{"Base":[[2014,2015]],"GTR":[[2015,2015]]},
+  "Senna":{"Base":[[2018,2020]],"GTR":[[2019,2020]],"Carbon Theme":[[2019,2020]]}
+},
+"Mercedes-Benz":{
+  "A-Class":{"A 220":[[2019,2025]],"A 35 AMG":[[2020,2025]],"A 45 AMG":[[2013,2018]]},
+  "AMG GT":{"AMG GT":[[2016,2025]],"AMG GT S":[[2016,2025]],"AMG GT C":[[2017,2021]],"AMG GT R":[[2017,2025]],"AMG GT Black Series":[[2021,2021]],"AMG GT 4-Door":[[2019,2025]],"AMG GT 63":[[2019,2025]]},
+  "B-Class":{"B 250":[[2014,2019]],"B 250e":[[2014,2019]]},
+  "C-Class":{"C 300":[[1994,2025]],"C 43 AMG":[[2017,2025]],"C 63 AMG":[[2008,2025]],"C 63 AMG S":[[2015,2025]],"C 300 4MATIC":[[2008,2025]]},
+  "CLA":{"CLA 250":[[2014,2025]],"CLA 35 AMG":[[2020,2025]],"CLA 45 AMG":[[2014,2019]]},
+  "CLS":{"CLS 350":[[2006,2010]],"CLS 400":[[2015,2018]],"CLS 450":[[2019,2025]],"CLS 63 AMG":[[2006,2018]],"CLS 53 AMG":[[2019,2025]]},
+  "E-Class":{"E 300":[[1994,2025]],"E 350":[[2006,2025]],"E 400":[[2014,2025]],"E 450":[[2019,2025]],"E 53 AMG":[[2019,2025]],"E 63 AMG":[[2007,2025]],"E 63 AMG S":[[2012,2025]]},
+  "EQC":{"400 4MATIC":[[2020,2023]]},
+  "EQE":{"350":[[2023,2025]],"350+":[[2023,2025]],"500 4MATIC":[[2023,2025]],"AMG 43":[[2023,2025]],"SUV 350":[[2023,2025]]},
+  "EQS":{"450+":[[2022,2025]],"450 4MATIC":[[2022,2025]],"580 4MATIC":[[2022,2025]],"AMG 53":[[2023,2025]],"SUV 450+":[[2023,2025]],"Maybach 680":[[2023,2025]]},
+  "G-Class":{"G 550":[[1990,2025]],"G 63 AMG":[[2013,2025]],"G 500":[[1990,2012]]},
+  "GL / GLS":{"GL 450":[[2007,2019]],"GL 550":[[2007,2019]],"GLS 450":[[2020,2025]],"GLS 580":[[2020,2025]],"GLS 63 AMG":[[2021,2025]],"Maybach GLS 600":[[2021,2025]]},
+  "GLA":{"GLA 250":[[2015,2025]],"GLA 35 AMG":[[2021,2025]],"GLA 45 AMG":[[2015,2019]]},
+  "GLB":{"GLB 250":[[2020,2025]],"GLB 35 AMG":[[2021,2025]]},
+  "GLC":{"GLC 300":[[2016,2025]],"GLC 43 AMG":[[2017,2025]],"GLC 63 AMG":[[2017,2025]],"GLC 63 AMG S":[[2018,2025]]},
+  "GLE / ML":{"ML 320":[[1998,2011]],"ML 350":[[2003,2015]],"ML 550":[[2007,2015]],"GLE 300d":[[2016,2025]],"GLE 350":[[2016,2025]],"GLE 450":[[2020,2025]],"GLE 53 AMG":[[2020,2025]],"GLE 63 AMG S":[[2016,2025]]},
+  "Maybach S-Class":{"Maybach S 580":[[2021,2025]],"Maybach S 650":[[2021,2022]],"Maybach S 680":[[2022,2025]]},
+  "R-Class":{"R 320":[[2006,2012]],"R 350":[[2006,2012]],"R 500":[[2006,2009]]},
+  "S-Class":{"S 320":[[1972,1993]],"S 350":[[2006,2025]],"S 450":[[2018,2025]],"S 500":[[1992,2025]],"S 560":[[2018,2025]],"S 580":[[2021,2025]],"S 63 AMG":[[1993,2025]],"S 65 AMG":[[2004,2020]]},
+  "SL-Class":{"SL 450":[[1970,2025]],"SL 500":[[1990,2012]],"SL 550":[[2006,2020]],"SL 600":[[1993,2012]],"SL 63 AMG":[[2005,2025]],"SL 65 AMG":[[2005,2020]],"SL 43":[[2023,2025]],"SL 55 AMG":[[2023,2025]]},
+  "SLC / SLK":{"SLK 230":[[1997,2004]],"SLK 280":[[2005,2008]],"SLK 300":[[2010,2020]],"SLK 350":[[2004,2016]],"SLK 55 AMG":[[2005,2016]],"SLC 300":[[2017,2020]],"SLC 43 AMG":[[2017,2020]]},
+  "SLS AMG":{"SLS AMG":[[2011,2015]],"Black Series":[[2013,2014]],"Electric Drive":[[2013,2013]]},
+  "Sprinter":{"2500":[[2002,2025]],"3500":[[2002,2025]],"1500":[[2015,2025]]},
+  "190E / 2.3-16":{"190E":[[1984,1993]],"190E 2.3-16":[[1986,1988]]},
+  "230 / 240D / 280 / 300":{"230":[[1977,1980]],"240D":[[1977,1983]],"280E":[[1976,1985]],"300D":[[1976,1985]],"300E":[[1985,1993]],"300SEL":[[1970,1972]]}
+},
+"Mercury":{
+  "Bobcat":{"Base":[[1975,1980]],"Villager":[[1975,1980]]},
+  "Capri":{"Base":[[1970,1977],[1991,1994]],"XR2":[[1991,1994]]},
+  "Colony Park":{"Base":[[1970,1991]]},
+  "Cougar":{"Base":[[1970,1997],[1999,2002]],"XR7":[[1970,1997]],"Sport":[[1999,2002]]},
+  "Grand Marquis":{"GS":[[1983,2011]],"LS":[[1983,2011]],"LS Premium":[[2003,2011]]},
+  "Lynx":{"Base":[[1981,1987]],"GS":[[1981,1987]],"RS":[[1983,1987]]},
+  "Marauder":{"Base":[[2003,2004]]},
+  "Mariner":{"Base":[[2005,2011]],"Premier":[[2005,2011]],"Hybrid":[[2006,2011]]},
+  "Marquis":{"Base":[[1975,1986]],"Brougham":[[1975,1986]]},
+  "Milan":{"Base":[[2006,2011]],"Premier":[[2006,2011]],"Hybrid":[[2010,2011]]},
+  "Montego":{"Base":[[1970,1976],[2005,2007]],"MX":[[1970,1976]],"Premier":[[2005,2007]]},
+  "Monterey":{"Base":[[1970,1974],[2004,2007]],"Convenience":[[2004,2007]],"Luxury":[[2004,2007]],"Premier":[[2004,2007]]},
+  "Mountaineer":{"Base":[[1997,2010]],"Convenience":[[2002,2010]],"Premier":[[2002,2010]]},
+  "Mystique":{"GS":[[1995,2000]],"LS":[[1995,2000]]},
+  "Sable":{"GS":[[1986,2009]],"LS":[[1986,2009]],"Premier":[[2008,2009]]},
+  "Topaz":{"GS":[[1984,1994]],"LS":[[1984,1994]],"LTS":[[1990,1994]]},
+  "Tracer":{"Base":[[1988,1999]],"LTS":[[1988,1999]]},
+  "Villager":{"Base":[[1993,2002]],"GS":[[1993,2002]],"LS":[[1993,2002]],"Estate":[[1997,2002]]}
+},
+"Mini":{
+  "Clubman":{"Cooper":[[2008,2025]],"Cooper S":[[2008,2025]],"John Cooper Works":[[2009,2025]],"Cooper SE":[[2020,2025]]},
+  "Convertible":{"Cooper":[[2005,2025]],"Cooper S":[[2005,2025]],"John Cooper Works":[[2009,2025]]},
+  "Cooper":{"Cooper":[[2002,2025]],"Cooper S":[[2002,2025]],"John Cooper Works":[[2007,2025]]},
+  "Countryman":{"Cooper":[[2011,2025]],"Cooper S":[[2011,2025]],"Cooper SE ALL4":[[2017,2025]],"John Cooper Works":[[2013,2025]],"John Cooper Works ALL4":[[2013,2025]]},
+  "Coupe":{"Cooper":[[2012,2015]],"Cooper S":[[2012,2015]],"John Cooper Works":[[2013,2015]]},
+  "Electric":{"SE":[[2020,2025]],"SE Level 2":[[2022,2025]]},
+  "Hardtop 2-Door":{"Cooper":[[2014,2025]],"Cooper S":[[2014,2025]],"John Cooper Works":[[2015,2025]]},
+  "Hardtop 4-Door":{"Cooper":[[2015,2025]],"Cooper S":[[2015,2025]],"John Cooper Works":[[2015,2025]]},
+  "Paceman":{"Cooper":[[2013,2016]],"Cooper S":[[2013,2016]],"John Cooper Works":[[2013,2016]]},
+  "Roadster":{"Cooper":[[2012,2015]],"Cooper S":[[2012,2015]],"John Cooper Works":[[2013,2015]]}
+},
+"Mitsubishi":{
+  "3000GT":{"Base":[[1991,1999]],"SL":[[1991,1999]],"VR-4":[[1991,1999]]},
+  "Diamante":{"LS":[[1992,2002]],"ES":[[1997,2002]]},
+  "Eclipse":{"GS":[[1990,2012]],"GT":[[1990,2012]],"GS-T":[[1992,1999]],"GSX":[[1990,1999]],"GTS":[[2001,2005]],"Spyder GS":[[1997,2012]],"Spyder GT":[[2001,2012]]},
+  "Eclipse Cross":{"ES":[[2018,2025]],"LE":[[2018,2025]],"SE":[[2018,2025]],"SEL":[[2018,2025]],"PHEV SE":[[2023,2025]],"PHEV SEL":[[2023,2025]]},
+  "Endeavor":{"LS":[[2004,2011]],"SE":[[2004,2011]]},
+  "Expo":{"Base":[[1992,1996]],"LRV":[[1992,1996]]},
+  "Galant":{"DE":[[1985,2012]],"LS":[[1985,2012]],"ES":[[1994,2012]],"GTS":[[2004,2012]],"Ralliart":[[2009,2012]]},
+  "i-MiEV":{"Base":[[2012,2017]]},
+  "Lancer":{"DE":[[1985,2017]],"ES":[[2002,2017]],"SE":[[2008,2017]],"GTS":[[2004,2017]],"Ralliart":[[2009,2015]],"Evolution GSR":[[2003,2015]]},
+  "Lancer Evolution":{"GSR":[[2003,2015]],"MR":[[2006,2015]],"RS":[[2006,2015]],"Final Edition":[[2015,2015]]},
+  "Mighty Max":{"Base":[[1979,1996]],"LS":[[1989,1996]],"Sport":[[1979,1996]]},
+  "Mirage":{"Base":[[1985,1992],[2014,2025]],"ES":[[2014,2025]],"G4 ES":[[2017,2025]],"G4 SE":[[2017,2025]]},
+  "Montero":{"LS":[[1984,2006]],"SR":[[1997,2006]],"Limited":[[1997,2006]],"Sport LS":[[1997,2004]]},
+  "Montero Sport":{"LS":[[1997,2004]],"ES":[[1997,2004]],"XLS":[[1997,2004]]},
+  "Outlander":{"ES":[[2003,2025]],"LS":[[2003,2013]],"SE":[[2007,2025]],"SEL":[[2022,2025]],"GT":[[2010,2025]],"PHEV SE":[[2023,2025]],"PHEV SEL":[[2023,2025]]},
+  "Outlander Sport":{"ES":[[2011,2025]],"SE":[[2011,2025]],"SEL":[[2015,2025]],"GT":[[2019,2025]]},
+  "Starion":{"Base":[[1983,1989]],"ES-R":[[1985,1989]],"ESI-R":[[1988,1989]]}
+},
+"Nissan":{
+  "1200":{"Base":[[1970,1973]]},
+  "200SX":{"Base":[[1977,1998]],"XE":[[1984,1998]],"SE":[[1984,1998]]},
+  "240SX":{"Base":[[1989,1998]],"SE":[[1989,1998]],"LE":[[1993,1998]]},
+  "Altima":{"S":[[1993,2025]],"SV":[[2002,2025]],"SR":[[2013,2025]],"SL":[[1993,2025]],"Platinum":[[2019,2025]],"Hybrid":[[2007,2011]]},
+  "Ariya":{"Engage":[[2023,2025]],"Engage+":[[2023,2025]],"Venture+":[[2023,2025]],"Evolve+":[[2023,2025]],"Platinum+":[[2023,2025]]},
+  "Armada":{"SE":[[2004,2025]],"SL":[[2004,2025]],"SV":[[2017,2025]],"Platinum":[[2011,2025]],"Platinum Reserve":[[2020,2025]]},
+  "Cube":{"S":[[2009,2014]],"SL":[[2009,2014]],"Krom":[[2010,2011]]},
+  "Frontier":{"S":[[1998,2025]],"SV":[[2012,2025]],"PRO-4X":[[2009,2025]],"SL":[[2020,2025]],"PRO-X":[[2022,2025]]},
+  "GT-R":{"Premium":[[2009,2023]],"Black Edition":[[2012,2023]],"Track Edition":[[2012,2023]],"NISMO":[[2014,2023]]},
+  "Juke":{"S":[[2011,2017]],"SV":[[2011,2017]],"SL":[[2011,2017]],"NISMO":[[2013,2017]]},
+  "Kicks":{"S":[[2018,2025]],"SV":[[2018,2025]],"SR":[[2018,2025]],"SR Premium":[[2022,2025]]},
+  "LEAF":{"S":[[2011,2025]],"SV":[[2013,2025]],"SL":[[2013,2025]],"Plus":[[2019,2025]]},
+  "Maxima":{"GLE":[[1981,1994]],"GXE":[[1989,2003]],"SE":[[1989,2025]],"SL":[[2000,2025]],"SV":[[2009,2025]],"SR":[[2014,2025]],"Platinum":[[2016,2025]]},
+  "Murano":{"S":[[2003,2025]],"SV":[[2009,2025]],"SL":[[2003,2025]],"Platinum":[[2019,2025]]},
+  "NV Cargo":{"NV1500 S":[[2012,2021]],"NV2500 S":[[2012,2021]],"NV3500 SL":[[2012,2021]]},
+  "Pathfinder":{"S":[[1987,2025]],"SV":[[2012,2025]],"SL":[[1990,2025]],"Platinum":[[2014,2025]],"Rock Creek":[[2022,2025]]},
+  "Pickup / Hardbody":{"Base":[[1973,1997]],"King Cab":[[1977,1997]],"SE":[[1986,1997]]},
+  "Pulsar / NX":{"Base":[[1983,1994]],"NX 1600":[[1983,1986]],"NX 2000":[[1991,1993]]},
+  "Quest":{"XE":[[1993,2017]],"SE":[[1993,2017]],"SL":[[1993,2017]],"SV":[[2011,2017]],"Platinum":[[2011,2017]]},
+  "Rogue":{"S":[[2008,2025]],"SV":[[2008,2025]],"SL":[[2008,2025]],"Platinum":[[2022,2025]],"Sport":[[2017,2025]],"Rock Creek":[[2024,2025]]},
+  "Rogue Sport":{"S":[[2017,2025]],"SV":[[2017,2025]],"SL":[[2017,2025]]},
+  "Sentra":{"E":[[1982,2012]],"XE":[[1982,2012]],"GXE":[[1984,2006]],"SE-R":[[1991,2012]],"SE-R Spec V":[[2002,2012]],"SV":[[2013,2025]],"SR":[[2013,2025]],"SL":[[2016,2025]]},
+  "Stanza":{"XE":[[1982,1992]],"E":[[1982,1992]],"GXE":[[1987,1992]]},
+  "Titan":{"S":[[2004,2025]],"SV":[[2012,2025]],"PRO-4X":[[2008,2025]],"SL":[[2004,2025]],"Platinum Reserve":[[2017,2025]]},
+  "Versa":{"S":[[2007,2025]],"SV":[[2012,2025]],"SR":[[2020,2025]],"Note S":[[2014,2019]],"Note SV":[[2014,2019]]},
+  "Xterra":{"XE":[[2000,2015]],"SE":[[2000,2015]],"OR":[[2007,2015]],"PRO-4X":[[2009,2015]]},
+  "Z (240Z–370Z–Z)":{"240Z":[[1970,1973]],"260Z":[[1974,1975]],"280Z":[[1975,1978]],"280ZX":[[1979,1983]],"300ZX":[[1984,1996]],"350Z":[[2003,2009]],"370Z":[[2009,2020]],"Z Sport":[[2023,2025]],"Z Performance":[[2023,2025]],"Z Proto Spec":[[2023,2023]],"NISMO":[[2024,2025]]}
+},
+"Oldsmobile":{
+  "442":{"Base":[[1970,1980]],"W-30":[[1970,1972]],"W-32":[[1970,1972]]},
+  "98":{"Base":[[1970,1996]],"Luxury":[[1970,1996]],"Regency":[[1971,1996]],"Elite":[[1971,1996]]},
+  "Achieva":{"S":[[1992,1998]],"SL":[[1992,1998]],"SC":[[1992,1998]]},
+  "Alero":{"GL":[[1999,2004]],"GLS":[[1999,2004]],"GX":[[1999,2004]]},
+  "Aurora":{"Base":[[1995,2003]],"3.5":[[2001,2003]],"4.0":[[1995,2003]],"LSS":[[1997,1999]]},
+  "Bravada":{"Base":[[1991,2004]],"AWD":[[1994,2004]]},
+  "Calais":{"Base":[[1985,1991]],"S":[[1985,1991]],"SL":[[1985,1991]]},
+  "Cutlass Ciera":{"Base":[[1982,1996]],"S":[[1982,1996]],"SL":[[1986,1996]],"International":[[1989,1993]]},
+  "Cutlass Supreme":{"Base":[[1970,1997]],"S":[[1970,1997]],"SL":[[1988,1997]],"International":[[1988,1997]]},
+  "Delta 88":{"Base":[[1970,1999]],"Royale":[[1970,1985]],"LS":[[1986,1999]]},
+  "Intrigue":{"GL":[[1998,2002]],"GLS":[[1998,2002]],"GX":[[1998,2002]]},
+  "Omega":{"Base":[[1973,1984]],"Brougham":[[1975,1984]]},
+  "Silhouette":{"Base":[[1990,2004]],"GL":[[1990,2004]],"GLS":[[1997,2004]]},
+  "Toronado":{"Base":[[1970,1992]],"Brougham":[[1976,1985]],"Trofeo":[[1986,1992]]},
+  "Vista Cruiser":{"Base":[[1970,1975]],"Custom":[[1970,1975]]}
+},
+"Plymouth":{
+  "Barracuda":{"Base":[[1970,1974]],"'Cuda":[[1970,1974]]},
+  "Breeze":{"Base":[[1996,2000]],"Expresso":[[1996,2000]]},
+  "Duster":{"Base":[[1970,1976]],"340":[[1970,1973]],"360":[[1974,1976]],"Twister":[[1971,1974]]},
+  "Fury":{"Base":[[1970,1978]],"I":[[1970,1978]],"II":[[1970,1978]],"III":[[1970,1978]],"Gran Fury":[[1970,1978]],"Sport Fury":[[1970,1973]]},
+  "Gran Fury":{"Base":[[1980,1989]],"Salon":[[1980,1989]]},
+  "Horizon":{"Base":[[1978,1990]],"TC3":[[1979,1982]]},
+  "Neon":{"Base":[[1994,2001]],"Highline":[[1994,2001]],"Sport":[[1996,2001]],"ACR":[[1995,2001]],"R/T":[[1998,2001]]},
+  "Prowler":{"Base":[[1997,2002]]},
+  "Road Runner":{"Base":[[1970,1980]],"GTX":[[1971,1971]],"Superbird":[[1970,1970]]},
+  "Satellite":{"Base":[[1970,1974]],"Custom":[[1970,1974]],"Sebring":[[1971,1974]],"Sebring Plus":[[1972,1974]]},
+  "Scamp":{"Base":[[1971,1980]],"GT":[[1974,1976]]},
+  "Sundance":{"Base":[[1987,1994]],"RS":[[1992,1994]],"Duster":[[1992,1994]]},
+  "Valiant":{"Base":[[1970,1976]],"Scamp":[[1971,1976]],"Brougham":[[1975,1976]]},
+  "Volare":{"Base":[[1976,1980]],"Premier":[[1976,1980]],"Road Runner":[[1977,1980]]},
+  "Voyager":{"Base":[[1984,2001]],"SE":[[1990,2001]],"LE":[[1990,2001]],"Grand SE":[[1990,2001]],"Grand LE":[[1990,2001]]}
+},
+"Polestar":{
+  "1":{"Base":[[2020,2021]]},
+  "2":{"Single Motor":[[2021,2025]],"Long Range Single Motor":[[2021,2025]],"Long Range Dual Motor":[[2021,2025]],"Performance":[[2021,2025]]},
+  "3":{"Long Range Single Motor":[[2024,2025]],"Long Range AWD":[[2024,2025]],"Long Range AWD Performance":[[2024,2025]]},
+  "4":{"Single Motor":[[2025,2025]],"Long Range Dual Motor":[[2025,2025]]}
+},
+"Pontiac":{
+  "Aztek":{"Base":[[2001,2005]],"GT":[[2001,2005]],"GTX":[[2003,2005]]},
+  "Bonneville":{"Base":[[1970,2005]],"SE":[[1987,2005]],"SLE":[[1987,2005]],"SSE":[[1988,2005]],"SSEI":[[1992,2005]],"GXP":[[2004,2005]]},
+  "Catalina":{"Base":[[1970,1981]],"Brougham":[[1970,1981]]},
+  "Firebird":{"Base":[[1970,2002]],"Esprit":[[1970,1978]],"Formula":[[1970,2002]],"Trans Am":[[1970,2002]],"Trans Am Ram Air":[[1999,2002]],"Firehawk":[[1992,2002]]},
+  "G6":{"Base":[[2005,2010]],"GT":[[2005,2010]],"GTP":[[2005,2009]]},
+  "G8":{"Base":[[2008,2009]],"GT":[[2008,2009]],"GXP":[[2009,2009]]},
+  "GTO":{"Base":[[1970,1974],[2004,2006]],"The Judge":[[1969,1971]]},
+  "Grand Am":{"SE":[[1973,1975],[1985,2005]],"GT":[[1989,2005]],"GT1":[[2000,2005]]},
+  "Grand Prix":{"Base":[[1970,2008]],"SE":[[1988,2003]],"STE":[[1988,1996]],"GTP":[[1988,2008]],"GT":[[1997,2008]],"GXP":[[2004,2008]]},
+  "LeMans":{"Base":[[1970,1981]],"Luxury":[[1970,1981]],"Safari":[[1970,1981]]},
+  "Montana":{"Base":[[1999,2009]],"SV6":[[2005,2009]],"Sport":[[2004,2009]]},
+  "Solstice":{"Base":[[2006,2010]],"GXP":[[2007,2010]]},
+  "Sunbird":{"Base":[[1976,1994]],"SE":[[1985,1994]],"GT":[[1985,1994]]},
+  "Sunfire":{"Base":[[1995,2005]],"SE":[[1995,2005]],"GT":[[1995,2005]]},
+  "Torrent":{"Base":[[2006,2009]],"GXP":[[2007,2009]]},
+  "Trans Am":{"Base":[[1970,2002]],"WS6":[[1996,2002]],"WS6 Ram Air":[[1999,2002]]},
+  "Vibe":{"Base":[[2003,2010]],"GT":[[2003,2008]],"AWD":[[2003,2008]]}
+},
+"Porsche":{
+  "718 Boxster":{"Base":[[2017,2025]],"S":[[2017,2025]],"GTS 4.0":[[2020,2025]],"Spyder":[[2020,2025]],"T":[[2023,2025]]},
+  "718 Cayman":{"Base":[[2017,2025]],"S":[[2017,2025]],"GTS 4.0":[[2020,2025]],"GT4":[[2020,2025]],"GT4 RS":[[2022,2025]],"T":[[2023,2025]]},
+  "911":{"Carrera":[[1970,2025]],"Carrera S":[[2004,2025]],"Carrera 4":[[1989,2025]],"Carrera 4S":[[2001,2025]],"Carrera GTS":[[2011,2025]],"Targa 4":[[1989,2025]],"Targa 4S":[[2001,2025]],"Targa 4 GTS":[[2015,2025]],"Turbo":[[1975,2025]],"Turbo S":[[1993,2025]],"GT2 RS":[[2018,2020]],"GT3":[[1999,2025]],"GT3 RS":[[2006,2025]],"GT3 Touring":[[2018,2025]],"Dakar":[[2023,2025]]},
+  "Boxster":{"Base":[[1997,2016]],"S":[[1999,2016]],"GTS":[[2014,2016]],"Spyder":[[2010,2016]]},
+  "Cayenne":{"Base":[[2003,2025]],"S":[[2003,2025]],"GTS":[[2007,2025]],"Turbo":[[2003,2025]],"Turbo GT":[[2022,2025]],"Turbo S E-Hybrid":[[2015,2025]],"E-Hybrid":[[2015,2025]],"Coupe":[[2020,2025]]},
+  "Cayman":{"Base":[[2006,2016]],"S":[[2006,2016]],"R":[[2012,2013]],"GTS":[[2014,2016]]},
+  "Macan":{"Base":[[2015,2025]],"S":[[2015,2025]],"GTS":[[2016,2025]],"Turbo":[[2015,2021]],"T":[[2023,2025]],"Electric":[[2025,2025]]},
+  "Panamera":{"Base":[[2010,2025]],"4":[[2010,2025]],"4S":[[2010,2025]],"GTS":[[2012,2025]],"Turbo":[[2010,2025]],"Turbo S":[[2012,2025]],"Turbo S E-Hybrid":[[2018,2025]],"Sport Turismo":[[2018,2025]]},
+  "Taycan":{"Base":[[2020,2025]],"4S":[[2020,2025]],"GTS":[[2022,2025]],"Turbo":[[2020,2025]],"Turbo S":[[2020,2025]],"Cross Turismo":[[2022,2025]],"Sport Turismo":[[2023,2025]]}
+},
+"Ram":{
+  "1500":{"Tradesman":[[2010,2025]],"Big Horn":[[2010,2025]],"Lone Star":[[2013,2025]],"Laramie":[[2010,2025]],"Rebel":[[2015,2025]],"Laramie Longhorn":[[2011,2025]],"Limited":[[2013,2025]],"TRX":[[2021,2025]],"Classic":[[2019,2025]]},
+  "2500":{"Tradesman":[[2010,2025]],"Big Horn":[[2010,2025]],"Laramie":[[2010,2025]],"Power Wagon":[[2010,2025]],"Laramie Longhorn":[[2011,2025]],"Limited":[[2013,2025]]},
+  "3500":{"Tradesman":[[2010,2025]],"Big Horn":[[2010,2025]],"Laramie":[[2010,2025]],"Laramie Longhorn":[[2011,2025]],"Limited":[[2013,2025]]},
+  "ProMaster":{"1500":[[2014,2025]],"2500":[[2014,2025]],"3500":[[2014,2025]]},
+  "ProMaster City":{"Tradesman":[[2015,2025]],"Tradesman SLT":[[2015,2025]],"Wagon SLT":[[2015,2025]]}
+},
+"Rivian":{
+  "R1S":{"Dual Motor":[[2022,2025]],"Quad Motor":[[2022,2025]],"Tri-Motor":[[2023,2025]],"Dual Max":[[2024,2025]]},
+  "R1T":{"Dual Motor":[[2022,2025]],"Quad Motor":[[2022,2025]],"Tri-Motor":[[2023,2025]],"Dual Max":[[2024,2025]]}
+},
+"Rolls-Royce":{
+  "Cullinan":{"Base":[[2019,2025]],"Black Badge":[[2020,2025]],"Series II":[[2024,2025]]},
+  "Dawn":{"Base":[[2016,2023]],"Black Badge":[[2018,2023]]},
+  "Ghost":{"Base":[[2010,2025]],"Extended":[[2010,2025]],"Black Badge":[[2017,2025]],"Series II":[[2021,2025]]},
+  "Phantom":{"Base":[[1970,1992],[2003,2025]],"Extended":[[2003,2025]],"Drophead Coupé":[[2007,2016]]},
+  "Silver Shadow":{"Base":[[1970,1980]],"Drophead Coupé":[[1970,1980]]},
+  "Silver Seraph":{"Base":[[1998,2002]]},
+  "Silver Spirit":{"Base":[[1980,1998]],"Silver Spirit II":[[1993,1998]]},
+  "Silver Spur":{"Base":[[1980,1994]],"Silver Spur II":[[1990,1993]]},
+  "Spectre":{"Base":[[2024,2025]]},
+  "Wraith":{"Base":[[2014,2023]],"Black Badge":[[2016,2023]],"Black Arrow":[[2023,2023]]}
+},
+"Saab":{
+  "900":{"Base":[[1979,1994]],"S":[[1985,1994]],"Turbo":[[1978,1994]],"Convertible":[[1987,1994]]},
+  "9000":{"CS":[[1986,1998]],"CD":[[1986,1998]],"CSE":[[1993,1998]],"Aero":[[1993,1998]]},
+  "9-3":{"Linear":[[1999,2011]],"Arc":[[1999,2011]],"Aero":[[1999,2011]],"SportCombi":[[2005,2011]],"Convertible":[[1999,2011]]},
+  "9-4X":{"3.0i":[[2011,2011]],"3.0i AWD":[[2011,2011]]},
+  "9-5":{"Linear":[[1999,2011]],"Arc":[[1999,2011]],"Aero":[[1999,2011]],"SportCombi":[[2006,2011]]},
+  "9-7X":{"3.6i":[[2005,2009]],"5.3i":[[2005,2009]],"Aero":[[2007,2009]]}
+},
+"Saturn":{
+  "Aura":{"XE":[[2007,2010]],"XR":[[2007,2010]],"Hybrid":[[2007,2010]]},
+  "Ion":{"Ion 1":[[2003,2007]],"Ion 2":[[2003,2007]],"Ion 3":[[2003,2007]],"Red Line":[[2004,2007]]},
+  "L-Series":{"L200":[[2000,2005]],"L300":[[2000,2005]],"LW200":[[2000,2003]],"LW300":[[2000,2003]]},
+  "Outlook":{"XE":[[2007,2010]],"XR":[[2007,2010]]},
+  "Relay":{"Base":[[2005,2007]],"1":[[2005,2007]],"2":[[2005,2007]],"3":[[2005,2007]]},
+  "S-Series":{"SL":[[1991,2002]],"SL1":[[1991,2002]],"SL2":[[1991,2002]],"SC1":[[1991,2002]],"SC2":[[1991,2002]],"SW1":[[1991,1998]],"SW2":[[1991,1998]]},
+  "Sky":{"Base":[[2007,2010]],"Red Line":[[2007,2010]]},
+  "Vue":{"XE":[[2002,2010]],"XR":[[2002,2010]],"Red Line":[[2004,2007]],"Green Line":[[2007,2010]],"Hybrid":[[2007,2010]]}
+},
+"Scion":{
+  "FR-S":{"Base":[[2013,2016]],"Release Series":[[2014,2016]]},
+  "iA":{"Base":[[2016,2016]]},
+  "iM":{"Base":[[2016,2016]]},
+  "iQ":{"Base":[[2012,2015]],"10-Series":[[2014,2014]]},
+  "tC":{"Base":[[2005,2016]],"Release Series":[[2011,2016]]},
+  "xA":{"Base":[[2004,2006]],"Release Series":[[2006,2006]]},
+  "xB":{"Base":[[2004,2015]],"Release Series":[[2005,2015]]},
+  "xD":{"Base":[[2008,2014]],"Release Series":[[2010,2014]]}
+},
+"Smart":{
+  "Fortwo":{"Pure":[[2008,2019]],"Passion":[[2008,2019]],"Brabus":[[2008,2014]],"Electric Drive":[[2013,2019]],"Prime":[[2016,2019]]},
+  "Forfour":{"Passion":[[2015,2019]],"Prime":[[2016,2019]],"Electric Drive":[[2017,2019]]}
+},
+"Subaru":{
+  "Ascent":{"Base":[[2019,2025]],"Premium":[[2019,2025]],"Limited":[[2019,2025]],"Touring":[[2019,2025]],"Onyx Edition":[[2020,2025]]},
+  "Baja":{"Sport":[[2003,2006]],"Turbo":[[2004,2006]]},
+  "BRZ":{"Premium":[[2013,2025]],"Limited":[[2013,2025]],"tS":[[2017,2020]],"Series.Yellow":[[2014,2014]]},
+  "Crosstrek":{"Base":[[2013,2025]],"Premium":[[2013,2025]],"Limited":[[2018,2025]],"Sport":[[2019,2025]],"Wilderness":[[2022,2025]],"Hybrid":[[2019,2022]]},
+  "Forester":{"L":[[1998,2003]],"X":[[2003,2013]],"Base":[[2014,2025]],"Premium":[[2014,2025]],"Sport":[[2019,2025]],"Limited":[[2014,2025]],"Touring":[[2014,2025]],"Wilderness":[[2022,2025]]},
+  "Impreza":{"L":[[1993,2001]],"Base":[[2002,2025]],"Premium":[[2002,2025]],"Sport":[[2012,2025]],"Limited":[[2012,2025]],"WRX":[[1993,2014]]},
+  "Justy":{"Base":[[1987,1994]],"GL":[[1987,1994]],"DL":[[1987,1994]]},
+  "Legacy":{"L":[[1990,2004]],"Base":[[2005,2025]],"Premium":[[2013,2025]],"Limited":[[2005,2025]],"Sport":[[2020,2025]],"GT":[[2005,2009]],"Touring XT":[[2020,2023]]},
+  "Leone":{"Base":[[1972,1994]],"GL":[[1981,1994]],"DL":[[1975,1994]]},
+  "Loyale":{"Base":[[1990,1994]],"L":[[1990,1994]]},
+  "Outback":{"Base":[[1995,2025]],"Premium":[[2003,2025]],"Limited":[[2000,2025]],"Touring":[[2017,2025]],"XT":[[2020,2025]],"Wilderness":[[2022,2025]]},
+  "SVX":{"L":[[1992,1997]],"LSi":[[1992,1997]],"LSL":[[1992,1997]]},
+  "Tribeca":{"Base":[[2006,2014]],"Premium":[[2008,2014]],"Limited":[[2006,2014]]},
+  "WRX":{"Base":[[2002,2025]],"Premium":[[2002,2025]],"Limited":[[2005,2025]],"GT":[[2020,2025]],"TR":[[2022,2025]],"STI":[[2004,2021]],"STI Limited":[[2004,2021]],"STI S209":[[2019,2019]]},
+  "WRX STI":{"Base":[[2004,2021]],"Limited":[[2004,2021]],"Type RA":[[2018,2021]],"S209":[[2019,2019]]},
+  "XT / XT6":{"XT":[[1985,1991]],"XT6":[[1991,1991]]}
+},
+"Suzuki":{
+  "Aerio":{"S":[[2002,2007]],"LX":[[2002,2007]]},
+  "Esteem":{"GL":[[1995,2002]],"GLX":[[1995,2002]]},
+  "Forenza":{"Base":[[2004,2008]],"LX":[[2004,2008]],"EX":[[2004,2008]]},
+  "Grand Vitara":{"JLX":[[1999,2013]],"JX":[[1999,2013]],"Limited":[[2006,2013]]},
+  "Jimny":{"JA":[[1970,2018]],"JL":[[1970,2018]],"JLX":[[1980,2018]]},
+  "Kizashi":{"S":[[2010,2013]],"SE":[[2010,2013]],"Sport":[[2010,2013]],"GTS":[[2010,2013]],"SLS":[[2010,2013]]},
+  "Samurai":{"JA":[[1987,1995]],"JL":[[1987,1995]],"JX":[[1987,1992]]},
+  "Sidekick":{"JX":[[1989,1998]],"JS":[[1989,1998]],"JLX":[[1989,1998]]},
+  "Swift":{"GA":[[1985,2001]],"GL":[[1985,2001]],"GLX":[[1989,1994]],"GTi":[[1989,1994]]},
+  "SX4":{"Base":[[2007,2013]],"Sport":[[2007,2013]],"LE":[[2007,2013]]},
+  "Verona":{"EX":[[2004,2006]],"LX":[[2004,2006]]},
+  "Vitara":{"JLX":[[1989,2025]],"JX":[[1989,2013]],"Limited":[[2015,2025]]},
+  "X-90":{"Base":[[1996,1998]]},
+  "XL7":{"Base":[[2001,2009]],"Limited":[[2004,2009]],"LX":[[2001,2003]]}
+},
+"Tesla":{
+  "Cybertruck":{"Dual Motor AWD":[[2024,2025]],"AWD (Standard)":[[2024,2025]],"Cyberbeast":[[2024,2025]]},
+  "Model 3":{"Standard RWD":[[2018,2025]],"Long Range AWD":[[2018,2025]],"Performance AWD":[[2019,2025]],"Highland RWD":[[2024,2025]],"Highland Long Range":[[2024,2025]]},
+  "Model S":{"Base AWD":[[2012,2025]],"Long Range AWD":[[2017,2025]],"Plaid":[[2021,2025]]},
+  "Model X":{"Base AWD":[[2016,2025]],"Long Range AWD":[[2017,2025]],"Plaid":[[2021,2025]]},
+  "Model Y":{"Standard RWD":[[2020,2025]],"Long Range AWD":[[2020,2025]],"Performance AWD":[[2020,2025]],"Juniper RWD":[[2025,2025]],"Juniper Long Range":[[2025,2025]]},
+  "Roadster":{"Base":[[2008,2012]],"Sport":[[2010,2012]]}
+},
+"Toyota":{
+  "4Runner":{"SR5":[[1984,2025]],"Trail":[[2014,2025]],"TRD Off-Road":[[2017,2025]],"TRD Pro":[[2015,2025]],"TRD Sport":[[2002,2025]],"Limited":[[1995,2025]],"Venture":[[2023,2025]]},
+  "86 / GT86":{"Base":[[2017,2021]],"GT86":[[2017,2021]]},
+  "bZ4X":{"XLE":[[2023,2025]],"XLE Premium":[[2023,2025]],"Limited":[[2023,2025]]},
+  "Camry":{"LE":[[1983,2025]],"SE":[[1992,2025]],"XLE":[[1992,2025]],"XSE":[[2018,2025]],"TRD":[[2020,2023]],"Hybrid LE":[[2007,2025]],"Hybrid SE":[[2016,2025]],"Hybrid XLE":[[2007,2025]],"Hybrid XSE":[[2021,2025]]},
+  "C-HR":{"XLE":[[2018,2025]],"XLE Premium":[[2018,2025]],"Nightshade":[[2020,2025]],"Limited":[[2018,2025]]},
+  "Celica":{"GT":[[1970,2005]],"GTS":[[1971,2005]],"GT-S":[[1982,2005]],"All-Trac Turbo":[[1988,1993]]},
+  "Corolla":{"CE":[[1970,2013]],"LE":[[1970,2025]],"SE":[[2003,2025]],"XSE":[[2017,2025]],"XLE":[[2009,2025]],"GR":[[2023,2025]],"Hybrid LE":[[2020,2025]]},
+  "Corolla Cross":{"L":[[2022,2025]],"LE":[[2022,2025]],"S":[[2022,2025]],"XLE":[[2022,2025]],"Hybrid S":[[2023,2025]],"Hybrid SE":[[2023,2025]]},
+  "Corona":{"Base":[[1970,1983]],"Deluxe":[[1970,1983]],"LE":[[1980,1983]]},
+  "Cressida":{"Base":[[1978,1992]],"Luxury":[[1984,1992]]},
+  "Crown":{"XLE":[[2023,2025]],"Limited":[[2023,2025]],"Platinum":[[2023,2025]],"Platinum Premium":[[2023,2025]]},
+  "Echo":{"Base":[[2000,2005]]},
+  "FJ Cruiser":{"Base":[[2007,2014]],"Trail Teams":[[2012,2014]]},
+  "GR86":{"Base":[[2022,2025]],"Premium":[[2022,2025]]},
+  "GR Corolla":{"Core":[[2023,2025]],"Circuit Edition":[[2023,2025]],"Morizo Edition":[[2023,2025]]},
+  "GR Supra":{"2.0":[[2020,2025]],"3.0":[[2020,2025]],"3.0 Premium":[[2020,2025]],"A91-CF Edition":[[2022,2022]],"A91-MT Edition":[[2023,2023]]},
+  "Highlander":{"LE":[[2001,2025]],"XLE":[[2001,2025]],"Limited":[[2001,2025]],"Platinum":[[2017,2025]],"TRD Off-Road":[[2020,2023]],"Hybrid LE":[[2006,2025]],"Hybrid Limited":[[2006,2025]]},
+  "Land Cruiser":{"Base":[[1970,2021],[2024,2025]],"GX":[[1983,2021]],"GXR":[[2024,2025]],"First Edition":[[2024,2025]]},
+  "Matrix":{"Base":[[2003,2013]],"XR":[[2003,2013]],"XRS":[[2003,2013]]},
+  "MR2":{"Base":[[1985,1989],[1991,1995],[2000,2005]],"Supercharged":[[1985,1989]],"Turbo":[[1991,1995]],"Spyder":[[2000,2005]]},
+  "Pickup / Truck":{"Base":[[1970,1995]],"SR5":[[1970,1995]],"DLX":[[1988,1995]],"Xtracab":[[1984,1995]]},
+  "Prius":{"One":[[2001,2025]],"Two":[[2001,2025]],"Three":[[2001,2025]],"Four":[[2010,2025]],"SE":[[2023,2025]],"XSE":[[2023,2025]],"Limited":[[2019,2025]]},
+  "Prius C":{"One":[[2012,2019]],"Two":[[2012,2019]],"Three":[[2012,2019]],"Four":[[2012,2019]]},
+  "Prius Prime":{"Plus":[[2017,2021]],"Premium":[[2017,2021]],"Advanced":[[2017,2025]],"SE":[[2023,2025]],"XSE":[[2023,2025]]},
+  "Prius V":{"Two":[[2012,2017]],"Three":[[2012,2017]],"Five":[[2012,2017]]},
+  "RAV4":{"LE":[[1996,2025]],"XLE":[[2001,2025]],"XLE Premium":[[2019,2025]],"Adventure":[[2018,2025]],"TRD Off-Road":[[2020,2025]],"Limited":[[1996,2025]],"Hybrid LE":[[2016,2025]],"Hybrid XLE":[[2016,2025]],"Hybrid Limited":[[2016,2025]]},
+  "RAV4 Prime":{"SE":[[2021,2025]],"XSE":[[2021,2025]],"XSE Premium":[[2021,2025]]},
+  "Sequoia":{"SR5":[[2001,2025]],"TRD Sport":[[2020,2025]],"TRD Pro":[[2020,2025]],"Limited":[[2001,2025]],"Platinum":[[2008,2025]],"Capstone":[[2022,2025]]},
+  "Sienna":{"CE":[[1998,2010]],"LE":[[1998,2025]],"SE":[[2012,2025]],"XLE":[[1998,2025]],"XSE":[[2021,2025]],"Limited":[[2001,2025]],"Platinum":[[2015,2025]]},
+  "Solara":{"SE":[[1999,2008]],"SLE":[[1999,2008]],"Sport":[[2004,2008]]},
+  "Starlet":{"Base":[[1981,1984]]},
+  "Supra":{"Base":[[1979,1998],[2020,2025]],"Turbo":[[1987,1998]],"Twin Turbo":[[1993,1998]],"3.0":[[2020,2025]],"A91":[[2021,2025]],"45th Anniversary":[[2023,2023]]},
+  "T100":{"Base":[[1993,1998]],"SR5":[[1993,1998]]},
+  "Tacoma":{"Regular Cab":[[1995,2025]],"SR":[[2012,2025]],"SR5":[[1995,2025]],"TRD Sport":[[2001,2025]],"TRD Off-Road":[[2003,2025]],"TRD Pro":[[2015,2025]],"Limited":[[2016,2025]],"Trail Edition":[[2022,2025]]},
+  "Tercel":{"Base":[[1980,1999]],"DX":[[1980,1999]],"LE":[[1991,1999]],"EZ":[[1997,1999]]},
+  "Tundra":{"SR":[[2000,2025]],"SR5":[[2000,2025]],"TRD Sport":[[2015,2025]],"TRD Off-Road":[[2020,2025]],"TRD Pro":[[2015,2025]],"Limited":[[2007,2025]],"Platinum":[[2007,2025]],"Capstone":[[2022,2025]]},
+  "Venza":{"Base":[[2009,2015],[2021,2025]],"LE":[[2021,2025]],"XLE":[[2021,2025]],"Limited":[[2021,2025]]},
+  "Yaris":{"CE":[[2007,2020]],"LE":[[2007,2020]],"S":[[2007,2015]],"iA":[[2016,2019]]}
+},
+"Volkswagen":{
+  "Atlas":[[2018,2025]],"Atlas Cross Sport":[[2020,2025]],"Beetle":[[1970,2019]],
+  "CC":[[2009,2017]],"Corrado":[[1992,1994]],"Golf":[[1975,2025]],
+  "Golf GTI":[[1983,2025]],"Golf R":[[2012,2025]],"ID.3":[[2020,2025]],
+  "ID.4":[[2021,2025]],"ID. Buzz":[[2024,2025]],"Jetta":[[1980,2025]],
+  "Passat":[[1974,2025]],"Phaeton":[[2004,2006]],"Rabbit":[[1975,1984],[2007,2009]],
+  "Routan":[[2009,2014]],"Scirocco":[[1975,1988]],"Taos":[[2022,2025]],
+  "Tiguan":[[2009,2025]],"Touareg":[[2004,2025]],"Type 2 (Bus)":[[1970,1979]]
+},
+"Volvo":{
+  "142 / 144":[[1970,1974]],"164":[[1970,1974]],"240":[[1975,1993]],
+  "262C":[[1977,1981]],"264 / 265":[[1974,1982]],"340 / 360":[[1976,1991]],
+  "440 / 460":[[1990,1997]],"480":[[1987,1995]],"740":[[1985,1992]],
+  "760":[[1983,1990]],"780":[[1986,1990]],"850":[[1993,1997]],
+  "940":[[1991,1998]],"960":[[1990,1998]],"C30":[[2008,2013]],
+  "C40":[[2022,2025]],"C70":[[1998,2013]],"EX30":[[2024,2025]],
+  "EX40 / EC40":[[2024,2025]],"EX90":[[2025,2025]],"S40":[[1995,2011]],
+  "S60":[[2001,2025]],"S70":[[1998,2000]],"S80":[[1999,2016]],
+  "S90":[[2017,2025]],"V40":[[1996,2004]],"V50":[[2005,2012]],
+  "V60":[[2011,2025]],"V70":[[1998,2016]],"V90":[[2017,2025]],
+  "XC40":[[2019,2025]],"XC60":[[2009,2025]],"XC70":[[2003,2016]],
+  "XC90":[[2003,2025]]
+}
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  TIPOS DE SERVIÇO
+// ═══════════════════════════════════════════════════════════════
+const SVC_TYPES = [
+  "Troca de Óleo e Filtro","Rodízio de Pneus","Substituição de Pneus",
+  "Inspeção de Freios","Pastilhas de Freio","Discos / Tambores de Freio",
+  "Filtro de Ar","Filtro de Ar da Cabine","Velas de Ignição",
+  "Filtro de Combustível","Troca do Líquido de Arrefecimento","Revisão da Transmissão",
+  "Revisão do Diferencial","Revisão da Caixa de Transferência","Substituição da Bateria",
+  "Alternador","Motor de Partida","Correia / Corrente de Distribuição",
+  "Correia Serpentina","Revisão do Ar-Condicionado","Alinhamento de Rodas",
+  "Balanceamento de Rodas","Revisão da Suspensão","Revisão do Escapamento",
+  "Vistoria / Inspeção","Teste de Emissões","Diagnóstico Eletrônico",
+  "Palhetas do Limpador","Revisão da Direção Hidráulica","Revisão do Sistema de Combustível"
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE & STORAGE
+// ═══════════════════════════════════════════════════════════════
+const CURR_YEAR = new Date().getFullYear();
+let state = { vehicles: [], records: [], activeId: null };
+
+function load() {
+  try { state = JSON.parse(localStorage.getItem('autolog') || 'null') || state; } catch(e) {}
+}
+function save() { localStorage.setItem('autolog', JSON.stringify(state)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ═══════════════════════════════════════════════════════════════
+//  YEAR HELPERS
+// ═══════════════════════════════════════════════════════════════
+function expandYears(ranges) {
+  const set = new Set();
+  for (const [s,e] of ranges) {
+    const lo = Math.max(s, 1970), hi = Math.min(e, CURR_YEAR);
+    for (let y = lo; y <= hi; y++) set.add(y);
+  }
+  return [...set].sort((a,b) => b-a);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SELECTS EM CASCATA
+// ═══════════════════════════════════════════════════════════════
+function populateEl(el, items, placeholder, disabled) {
+  el.innerHTML = `<option value="">${placeholder}</option>`;
+  items.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`);
+  el.disabled = disabled;
+}
+function resetFrom(step) {
+  if (step <= 1) populateEl($('selModelo'), [], '— Selecione o Modelo —', true);
+  if (step <= 2) populateEl($('selEspec'), [], '— Selecione o Ano —', true);
+}
+function onMarcaChange() {
+  resetFrom(1);
+  const marca = $('selMarca').value;
+  if (!marca) return;
+  populateEl($('selModelo'), Object.keys(DB[marca] || {}), '— Selecione o Modelo —', false);
+}
+function onModeloChange() {
+  resetFrom(2);
+  const marca = $('selMarca').value, modelo = $('selModelo').value;
+  if (!marca || !modelo) return;
+  const years = expandYears(DB[marca][modelo] || []);
+  populateEl($('selEspec'), years, '— Selecione o Ano —', false);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FUNÇÕES DO PROPRIETÁRIO
+// ═══════════════════════════════════════════════════════════════
+function saveVehicle() {
+  const marca=$('selMarca').value, modelo=$('selModelo').value,
+        espec=$('selEspec').value, ownerName=$('ownerName').value.trim();
+  if (!marca||!modelo||!espec) { showToast('⚠️ Selecione a marca, o modelo e o ano primeiro.'); return; }
+  if (!ownerName) { showToast('⚠️ Insira o nome do proprietário.'); return; }
+
+  const veh = {
+    id: uid(), make:marca, model:modelo, year:+espec,
+    color: $('vehColor').value.trim(),
+    vin: $('vehicleVin').value.trim().toUpperCase(),
+    ownerName, ownerPhone:$('ownerPhone').value.trim(),
+    ownerEmail:$('ownerEmail').value.trim(),
+    purchaseDate:$('purchaseDate').value,
+    currentMileage:$('curMileage').value ? +$('curMileage').value : null,
+    addedAt: new Date().toISOString()
+  };
+  state.vehicles.push(veh);
+  state.activeId = veh.id;
+  save();
+  renderVehicleList();
+  updateMechPanel();
+  updateBadge();
+  showToast('✅ Veículo salvo!');
+}
+
+function clearOwnerForm() {
+  ['selMarca','selModelo','selEspec'].forEach(id => {
+    const el = $(id); el.value = '';
+    if (id !== 'selMarca') el.disabled = true;
+  });
+  ['ownerName','ownerPhone','ownerEmail','vehicleVin','purchaseDate','curMileage','vehColor'].forEach(id => $(id).value='');
+}
+
+function selectVehicle(id) {
+  state.activeId = id;
+  save();
+  renderVehicleList();
+  updateMechPanel();
+  updateBadge();
+  // preencher formulário
+  const v = state.vehicles.find(x=>x.id===id);
+  if (!v) return;
+  $('selMarca').value = v.make; onMarcaChange();
+  $('selModelo').value = v.model; onModeloChange();
+  $('selEspec').value = v.year;
+  $('ownerName').value = v.ownerName;
+  $('ownerPhone').value = v.ownerPhone;
+  $('ownerEmail').value = v.ownerEmail;
+  $('vehicleVin').value = v.vin;
+  $('purchaseDate').value = v.purchaseDate;
+  $('curMileage').value = v.currentMileage||'';
+  $('vehColor').value = v.color||'';
+}
+
+function editVehicle(id) { selectVehicle(id); }
+
+function deleteVehicle(id) {
+  const v = state.vehicles.find(x=>x.id===id);
+  if (!v) return;
+  $('delMsg').textContent = `Excluir ${v.year} ${v.make} ${v.model} e todos os seus registros de serviço?`;
+  $('delConfirmBtn').onclick = () => {
+    state.vehicles = state.vehicles.filter(x=>x.id!==id);
+    state.records = state.records.filter(x=>x.vehicleId!==id);
+    if (state.activeId===id) state.activeId = state.vehicles[0]?.id || null;
+    save(); renderVehicleList(); updateMechPanel(); updateBadge();
+    closeModal('delModal'); showToast('🗑 Veículo excluído.');
+  };
+  openModal('delModal');
+}
+
+function renderVehicleList() {
+  const ul = $('vehicleList');
+  if (!state.vehicles.length) {
+    ul.innerHTML = '<li class="empty"><div class="empty-ico">🚗</div>Nenhum veículo salvo ainda</li>';
+    $('vehCount').textContent = '0'; return;
+  }
+  $('vehCount').textContent = state.vehicles.length;
+  ul.innerHTML = state.vehicles.map(v => `
+    <li class="vitem ${v.id===state.activeId?'active':''}" onclick="selectVehicle('${v.id}')">
+      <div class="vinfo">
+        <strong>${v.year} ${v.make} ${v.model}</strong>
+        <span>${v.ownerName} ${v.vin?'· '+v.vin:''}</span>
+      </div>
+      <div class="vactions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="editVehicle('${v.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteVehicle('${v.id}')">🗑</button>
+      </div>
+    </li>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MECHANIC FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+function updateMechPanel() {
+  const active = state.activeId && state.vehicles.find(x=>x.id===state.activeId);
+  $('noVehNotice').style.display   = active ? 'none' : '';
+  $('statsCard').style.display     = active ? '' : 'none';
+  $('addSvcCard').style.display    = active ? '' : 'none';
+  $('histCard').style.display      = active ? '' : 'none';
+  if (active) { renderStats(); renderHistory(); }
+}
+
+function updateBadge() {
+  const v = state.vehicles.find(x=>x.id===state.activeId);
+  if (v) {
+    $('badgeVehicle').textContent = `${v.year} ${v.make} ${v.model}`;
+    $('badgeOwner').textContent = v.ownerName;
+    $('activeBadge').classList.add('show');
+  } else {
+    $('activeBadge').classList.remove('show');
+  }
+}
+
+function renderStats() {
+  const recs = state.records.filter(r=>r.vehicleId===state.activeId);
+  $('statRec').textContent = recs.length;
+  const total = recs.reduce((s,r)=>s+(r.totalCost||0),0);
+  $('statTot').textContent = 'R$'+total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  if (recs.length) {
+    const last = recs.slice().sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    $('statLast').textContent = last.date ? new Date(last.date+'T00:00:00').toLocaleDateString('pt-BR',{month:'short',day:'numeric'}) : '—';
+  } else {
+    $('statLast').textContent = '—';
+  }
+}
+
+function toggleSvcForm() {
+  const f = $('svcForm'), open = f.style.display!=='none';
+  f.style.display = open ? 'none' : '';
+  $('svcToggleBtn').textContent = open ? 'Expandir' : 'Recolher';
+  if (!open && !$('svcDate').value) {
+    $('svcDate').value = new Date().toISOString().slice(0,10);
+  }
+}
+
+function calcTotal() {
+  const p = parseFloat($('partsCost').value)||0;
+  const l = parseFloat($('laborCost').value)||0;
+  const t = parseFloat($('taxAmt').value)||0;
+  $('totalCost').value = (p+l+t).toFixed(2);
+}
+
+function addSvcRecord() {
+  const types = [...document.querySelectorAll('#svcTypeChecks input:checked')].map(c=>c.value);
+  const other = $('svcOther').value.trim();
+  if (other) types.push(other);
+  if (!types.length && !$('svcNotes').value.trim()) {
+    showToast('⚠️ Insira pelo menos um serviço ou observações.'); return;
+  }
+  const rec = {
+    id: uid(), vehicleId: state.activeId,
+    date: $('svcDate').value,
+    mileage: $('svcMileage').value ? +$('svcMileage').value : null,
+    serviceTypes: types, notes: $('svcNotes').value.trim(),
+    partsUsed: $('partsUsed').value.trim(),
+    partsCost: parseFloat($('partsCost').value)||0,
+    laborCost: parseFloat($('laborCost').value)||0,
+    taxAmount: parseFloat($('taxAmt').value)||0,
+    totalCost: parseFloat($('totalCost').value)||0,
+    shopName: $('shopName').value.trim(),
+    shopPhone: $('shopPhone').value.trim(),
+    shopAddr: $('shopAddr').value.trim(),
+    techName: $('techName').value.trim(),
+    nextService: $('nextSvc').value.trim(),
+    warranty: $('warranty').value.trim(),
+    addedAt: new Date().toISOString()
+  };
+  state.records.push(rec);
+  save(); renderStats(); renderHistory();
+  clearSvcForm();
+  showToast('✅ Registro de serviço salvo!');
+}
+
+function clearSvcForm() {
+  ['svcDate','svcMileage','svcOther','svcNotes','partsUsed',
+   'partsCost','laborCost','taxAmt','totalCost',
+   'shopName','shopPhone','shopAddr','techName','nextSvc','warranty'].forEach(id => $(id).value='');
+  document.querySelectorAll('#svcTypeChecks input').forEach(c=>c.checked=false);
+  toggleSvcForm();
+}
+
+function renderHistory() {
+  const q = ($('srSearch').value||'').toLowerCase();
+  const recs = state.records.filter(r=>r.vehicleId===state.activeId)
+    .filter(r => !q || JSON.stringify(r).toLowerCase().includes(q))
+    .sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const el = $('svcList');
+  if (!recs.length) {
+    el.innerHTML='<div class="empty"><div class="empty-ico">📝</div>No service records yet</div>'; return;
+  }
+  el.innerHTML = recs.map(r => {
+    const types = (r.serviceTypes||[]).join(', ') || 'Serviço';
+    const shortTypes = types.length > 45 ? types.slice(0,45)+'…' : types;
+    const dateStr = r.date ? new Date(r.date+'T00:00:00').toLocaleDateString('pt-BR',{year:'numeric',month:'short',day:'numeric'}) : '—';
+    return `
+    <div class="srec">
+      <div class="srec-hdr" onclick="showDetail('${r.id}')">
+        <div class="smeta">
+          <span class="stype-badge">Serviço</span>
+          <span class="sdate">${dateStr}</span>
+          ${r.mileage?`<span class="smile">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
+          <span style="font-size:.78rem;color:var(--muted);display:block;width:100%;margin-top:.1rem">${shortTypes}</span>
+        </div>
+        <span class="scost">${r.totalCost?'R$'+r.totalCost.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showDetail(id) {
+  const r = state.records.find(x=>x.id===id);
+  if (!r) return;
+  const v = state.vehicles.find(x=>x.id===r.vehicleId);
+  const dateStr = r.date ? new Date(r.date+'T00:00:00').toLocaleDateString('pt-BR',{year:'numeric',month:'long',day:'numeric'}) : '—';
+
+  $('detailTitle').textContent = `${dateStr} — Registro de Serviço`;
+  $('detailContent').innerHTML = `
+    ${v?`<div style="background:#f8fafc;border-radius:8px;padding:.65rem .9rem;margin-bottom:.9rem;font-size:.85rem">
+      <strong>${v.year} ${v.make} ${v.model}</strong> · Proprietário: ${v.ownerName}
+      ${r.mileage?` · <span style="color:var(--muted)">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
+    </div>`:''}
+    <div class="detail-grid">
+      <div class="di"><label>Data</label><span>${dateStr}</span></div>
+      <div class="di"><label>Quilometragem</label><span>${r.mileage?r.mileage.toLocaleString('pt-BR')+' km':'—'}</span></div>
+      ${r.shopName?`<div class="di"><label>Oficina</label><span>${r.shopName}</span></div>`:''}
+      ${r.shopPhone?`<div class="di"><label>Tel. da Oficina</label><span>${r.shopPhone}</span></div>`:''}
+      ${r.shopAddr?`<div class="di" style="grid-column:span 2"><label>Endereço da Oficina</label><span>${r.shopAddr}</span></div>`:''}
+      ${r.techName?`<div class="di"><label>Técnico</label><span>${r.techName}</span></div>`:''}
+      ${r.nextService?`<div class="di"><label>Próximo Serviço</label><span>${r.nextService}</span></div>`:''}
+      ${r.warranty?`<div class="di" style="grid-column:span 2"><label>Garantia</label><span>${r.warranty}</span></div>`:''}
+    </div>
+    ${r.serviceTypes?.length?`
+    <div style="margin-bottom:.75rem">
+      <label style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Serviços Realizados</label>
+      <div style="margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.35rem">
+        ${r.serviceTypes.map(t=>`<span style="background:var(--mech-lt);color:var(--mech);font-size:.78rem;padding:.2rem .55rem;border-radius:4px;font-weight:600">${t}</span>`).join('')}
+      </div>
+    </div>`:''}
+    ${r.notes?`<div style="margin-bottom:.75rem"><label style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Notas</label><p style="margin-top:.3rem;font-size:.88rem">${r.notes}</p></div>`:''}
+    ${r.partsUsed?`<div style="margin-bottom:.75rem"><label style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Peças Utilizadas</label><p style="margin-top:.3rem;font-size:.88rem">${r.partsUsed}</p></div>`:''}
+    <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:.65rem .9rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;text-align:center">
+      <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Peças</div><div style="font-weight:700">R$${(r.partsCost||0).toFixed(2)}</div></div>
+      <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Mão de Obra</div><div style="font-weight:700">R$${(r.laborCost||0).toFixed(2)}</div></div>
+      <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Impostos/Outros</div><div style="font-weight:700">R$${(r.taxAmount||0).toFixed(2)}</div></div>
+      <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Total</div><div style="font-weight:800;color:var(--mech);font-size:1rem">R$${(r.totalCost||0).toFixed(2)}</div></div>
+    </div>`;
+
+  $('detailDelBtn').onclick = () => {
+    $('delMsg').textContent = 'Excluir este registro de serviço permanentemente?';
+    $('delConfirmBtn').onclick = () => {
+      state.records = state.records.filter(x=>x.id!==id);
+      save(); renderStats(); renderHistory();
+      closeModal('delModal'); closeModal('detailModal');
+      showToast('🗑 Registro excluído.');
+    };
+    openModal('delModal');
+  };
+  openModal('detailModal');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════
+function openModal(id) { $(id).classList.add('show'); }
+function closeModal(id) { $(id).classList.remove('show'); }
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('overlay')) closeModal(e.target.id);
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.overlay.show').forEach(m=>m.classList.remove('show'));
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITY
+// ═══════════════════════════════════════════════════════════════
+function $(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+(function init() {
+  load();
+
+  // Preencher dropdown de marcas
+  const marcaSel = $('selMarca');
+  Object.keys(DB).sort().forEach(m => marcaSel.innerHTML += `<option value="${m}">${m}</option>`);
+
+  // Build service type checkboxes
+  const svcContainer = $('svcTypeChecks');
+  SVC_TYPES.forEach(t => {
+    const label = document.createElement('label');
+    label.className = 'stype-chk';
+    label.innerHTML = `<input type="checkbox" value="${t}"> ${t}`;
+    svcContainer.appendChild(label);
+  });
+
+  // Render saved data
+  renderVehicleList();
+  updateMechPanel();
+  updateBadge();
+})();
+</script>
+</body>
+</html>

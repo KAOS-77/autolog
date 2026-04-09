@@ -1,0 +1,4 @@
+# Claude Code internal files
+.claude/agent-memory/
+.claude/agents/
+.claude/settings.local.json
