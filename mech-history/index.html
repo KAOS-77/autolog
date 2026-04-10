@@ -233,7 +233,7 @@ textarea{resize:vertical;min-height:72px}
       </div>
       <div class="row2">
         <div class="fg"><label>Placa</label><input id="vehiclePlaca" type="text" placeholder="ABC-1234 ou ABC-1B34" maxlength="8" oninput="formatPlaca(this)" style="text-transform:uppercase"></div>
-        <div class="fg"><label>Quilometragem Atual</label><input id="curMileage" type="number" placeholder="45000" min="0"></div>
+        <div class="fg"><label>Quilometragem Atual</label><input id="curMileage" type="text" inputmode="numeric" placeholder="45.000" oninput="fmtKm(this)"></div>
       </div>
       <div class="fg"><label>Cor</label><input id="vehColor" type="text" placeholder="ex: Branco Pérola"></div>
       <div style="display:flex;gap:.65rem;margin-top:.9rem">
@@ -289,7 +289,7 @@ textarea{resize:vertical;min-height:72px}
       <div id="svcForm" style="display:none">
         <div class="row2">
           <div class="fg"><label>Data do Serviço</label><input id="svcDate" type="date"></div>
-          <div class="fg"><label>Quilometragem no Serviço</label><input id="svcMileage" type="number" placeholder="45000" min="0"></div>
+          <div class="fg"><label>Quilometragem no Serviço</label><input id="svcMileage" type="text" inputmode="numeric" placeholder="45.000" oninput="fmtKm(this)"></div>
         </div>
         <div class="fg">
           <label>Serviços Realizados</label>
@@ -315,6 +315,7 @@ textarea{resize:vertical;min-height:72px}
           <div class="fg"><label>Telefone da Oficina</label><input id="shopPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
         </div>
         <div class="fg"><label>Endereço da Oficina</label><input id="shopAddr" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="prefillLastShop()" style="margin-bottom:.5rem">Usar última oficina</button>
         <div class="row2">
           <div class="fg"><label>Nome do Técnico</label><input id="techName" type="text" placeholder="Carlos Silva"></div>
         </div>
@@ -324,18 +325,6 @@ textarea{resize:vertical;min-height:72px}
             <div>
               <select id="nextSvcKm" onchange="document.getElementById('nextSvcKmCustom').style.display=this.value==='custom'?'block':'none'">
                 <option value="">-- Por Km --</option>
-                <option value="1500">1.500 km</option>
-                <option value="3000">3.000 km</option>
-                <option value="4500">4.500 km</option>
-                <option value="6000">6.000 km</option>
-                <option value="7500">7.500 km</option>
-                <option value="9000">9.000 km</option>
-                <option value="10500">10.500 km</option>
-                <option value="12000">12.000 km</option>
-                <option value="15000">15.000 km</option>
-                <option value="20000">20.000 km</option>
-                <option value="30000">30.000 km</option>
-                <option value="custom">Outro valor...</option>
               </select>
               <input type="number" id="nextSvcKmCustom" min="1" step="500" placeholder="Digite os km" style="display:none;margin-top:.35rem">
             </div>
@@ -1560,7 +1549,7 @@ function saveVehicle() {
     ownerName, ownerPhone:$('ownerPhone').value.trim(),
     ownerEmail:$('ownerEmail').value.trim(),
     plate: $('vehiclePlaca').value.trim(),
-    currentMileage:$('curMileage').value ? +$('curMileage').value : null,
+    currentMileage: parseInt($('curMileage').value.replace(/\./g,'')) || null,
     addedAt: new Date().toISOString()
   };
   state.vehicles.push(veh);
@@ -1570,6 +1559,7 @@ function saveVehicle() {
   updateMechPanel();
   updateBadge();
   showToast('✅ Veículo salvo!');
+  clearOwnerForm();
 }
 
 function clearOwnerForm() {
@@ -1598,7 +1588,7 @@ function selectVehicle(id) {
   $('ownerEmail').value = v.ownerEmail;
   $('vehicleVin').value = v.vin;
   $('vehiclePlaca').value = v.plate || '';
-  $('curMileage').value = v.currentMileage||'';
+  $('curMileage').value = v.currentMileage ? v.currentMileage.toLocaleString('pt-BR') : '';
   $('vehColor').value = v.color||'';
 }
 
@@ -1683,6 +1673,77 @@ function toggleSvcForm() {
   }
 }
 
+function togglePartsSearch(header) {
+  const body = header.parentElement.querySelector('.ps-body');
+  const chev = header.querySelector('.ps-chev');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function buildPartsSearchCard(partsUsed) {
+  if (!partsUsed) return '';
+  const parts = partsUsed.split(/[,\n]/).map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  const groups = parts.map((part, i) => {
+    const term = encodeURIComponent(part);
+    const isLast = i === parts.length - 1;
+    const sep = isLast ? '' : 'margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px dashed var(--border)';
+    return '<div style="' + sep + '">' +
+      '<div style="font-size:.78rem;font-weight:700;color:var(--txt);margin-bottom:.4rem">' + part + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:.35rem">' +
+        '<a class="btn btn-ghost btn-sm" href="https://lista.mercadolivre.com.br/' + term + '" target="_blank" rel="noopener noreferrer">Mercado Livre</a>' +
+        '<a class="btn btn-ghost btn-sm" href="https://www.amazon.com.br/s?k=' + term + '" target="_blank" rel="noopener noreferrer">Amazon BR</a>' +
+        '<a class="btn btn-ghost btn-sm" href="https://www.magazineluiza.com.br/busca/' + term + '/" target="_blank" rel="noopener noreferrer">Magazine Luiza</a>' +
+        '<a class="btn btn-ghost btn-sm" href="https://www.olx.com.br/brasil?q=' + term + '" target="_blank" rel="noopener noreferrer">OLX</a>' +
+        '<a class="btn btn-ghost btn-sm" href="https://shopee.com.br/search?keyword=' + term + '" target="_blank" rel="noopener noreferrer">Shopee</a>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  return '<div class="card" style="margin-bottom:.9rem;padding:.85rem 1rem">' +
+    '<div class="card-title" style="margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center" onclick="togglePartsSearch(this)">' +
+      '🔎 Buscar Peças' +
+      '<span class="ps-chev" style="margin-left:auto;transition:transform .2s;font-size:.9rem;color:var(--muted)">▸</span>' +
+    '</div>' +
+    '<div class="ps-body" style="display:none;margin-top:.85rem">' + groups + '</div>' +
+  '</div>';
+}
+
+function populateNextSvcKm() {
+  const sel = document.getElementById('nextSvcKm');
+  while (sel.options.length > 1) sel.remove(1);
+  for (let km = 1500; km <= 300000; km += 1500) {
+    const opt = document.createElement('option');
+    opt.value = km;
+    opt.textContent = km.toLocaleString('pt-BR') + ' km';
+    sel.appendChild(opt);
+  }
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = 'Outro valor...';
+  sel.appendChild(custom);
+}
+
+function prefillLastShop() {
+  const registros = state.records
+    .filter(r => r.vehicleId === state.activeId && r.shopName)
+    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
+  if (!registros.length) {
+    showToast('⚠️ Nenhuma oficina encontrada no histórico deste veículo.');
+    return;
+  }
+  const r = registros[0];
+  $('shopName').value  = r.shopName  || '';
+  $('shopPhone').value = r.shopPhone || '';
+  $('shopAddr').value  = r.shopAddr  || '';
+  $('techName').value  = r.techName  || '';
+}
+
+function fmtKm(input) {
+  const digits = input.value.replace(/\D/g, '');
+  input.value = digits ? Number(digits).toLocaleString('pt-BR') : '';
+}
+
 function calcTotal() {
   const p = parseFloat($('partsCost').value)||0;
   const l = parseFloat($('laborCost').value)||0;
@@ -1700,7 +1761,7 @@ function addSvcRecord() {
   const rec = {
     id: uid(), vehicleId: state.activeId,
     date: $('svcDate').value,
-    mileage: $('svcMileage').value ? +$('svcMileage').value : null,
+    mileage: parseInt($('svcMileage').value.replace(/\./g,'')) || null,
     serviceTypes: types, notes: $('svcNotes').value.trim(),
     partsUsed: $('partsUsed').value.trim(),
     partsCost: parseFloat($('partsCost').value)||0,
@@ -1804,6 +1865,7 @@ function showDetail(id) {
     </div>`:''}
     ${r.notes?`<div style="margin-bottom:.75rem"><label style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Notas</label><p style="margin-top:.3rem;font-size:.88rem">${r.notes}</p></div>`:''}
     ${r.partsUsed?`<div style="margin-bottom:.75rem"><label style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Peças Utilizadas</label><p style="margin-top:.3rem;font-size:.88rem">${r.partsUsed}</p></div>`:''}
+    ${buildPartsSearchCard(r.partsUsed)}
     <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:.65rem .9rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;text-align:center">
       <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Peças</div><div style="font-weight:700">R$${(r.partsCost||0).toFixed(2)}</div></div>
       <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Mão de Obra</div><div style="font-weight:700">R$${(r.laborCost||0).toFixed(2)}</div></div>
@@ -1869,6 +1931,9 @@ function $(id) { return document.getElementById(id); }
     label.innerHTML = `<input type="checkbox" value="${t}"><span class="chk-box"></span> ${t}`;
     svcContainer.appendChild(label);
   });
+
+  // Popular dropdown de km do próximo serviço (1.500 → 300.000 km)
+  populateNextSvcKm();
 
   // Render saved data
   renderVehicleList();
