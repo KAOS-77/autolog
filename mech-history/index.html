@@ -55,6 +55,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb;box-sh
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .7rem center;padding-right:2.2rem}
 select:disabled{background-color:#f8fafc;color:#94a3b8;cursor:not-allowed}
 textarea{resize:vertical;min-height:72px}
+.hint{display:block;margin-top:.35rem;font-size:.72rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500;line-height:1.35}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
 @media(max-width:480px){.row2{grid-template-columns:1fr}}
 
@@ -297,7 +298,11 @@ textarea{resize:vertical;min-height:72px}
           <input id="svcOther" type="text" placeholder="Outro / descrição personalizada...">
         </div>
         <div class="fg"><label>Notas / Observações</label><textarea id="svcNotes" placeholder="Descrição detalhada do trabalho..."></textarea></div>
-        <div class="fg"><label>Peças Utilizadas</label><textarea id="partsUsed" placeholder="Liste as peças trocadas ou instaladas..." style="min-height:58px"></textarea></div>
+        <div class="fg">
+          <label>Peças Utilizadas</label>
+          <textarea id="partsUsed" placeholder="Liste as peças trocadas ou instaladas..." style="min-height:58px"></textarea>
+          <small class="hint">💡 Após salvar, você poderá buscar as peças listadas nas lojas online.</small>
+        </div>
 
         <div class="divider">Detalhamento de Custos</div>
         <div class="row2">
@@ -315,7 +320,13 @@ textarea{resize:vertical;min-height:72px}
           <div class="fg"><label>Telefone da Oficina</label><input id="shopPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
         </div>
         <div class="fg"><label>Endereço da Oficina</label><input id="shopAddr" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="prefillLastShop()" style="margin-bottom:.5rem">Usar última oficina</button>
+        <div class="fg">
+          <label>Oficinas Anteriores</label>
+          <select id="shopPicker" onchange="onShopPickerChange(this)" disabled>
+            <option value="" disabled selected>— Preencher com oficina anterior —</option>
+          </select>
+          <small class="hint">Selecione para preencher os campos acima. Você pode editar livremente depois.</small>
+        </div>
         <div class="row2">
           <div class="fg"><label>Nome do Técnico</label><input id="techName" type="text" placeholder="Carlos Silva"></div>
         </div>
@@ -1637,7 +1648,7 @@ function updateMechPanel() {
   $('statsCard').style.display     = active ? '' : 'none';
   $('addSvcCard').style.display    = active ? '' : 'none';
   $('histCard').style.display      = active ? '' : 'none';
-  if (active) { renderStats(); renderHistory(); }
+  if (active) { renderStats(); renderHistory(); renderShopPicker(); }
 }
 
 function updateBadge() {
@@ -1674,12 +1685,22 @@ function toggleSvcForm() {
 }
 
 function togglePartsSearch(header) {
+  if (!header) return;
   const body = header.parentElement.querySelector('.ps-body');
+  if (!body) return;
   const chev = header.querySelector('.ps-chev');
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : '';
   if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
 }
+// Exposição global (necessário para handler inline em conteúdo injetado via innerHTML)
+window.togglePartsSearch = togglePartsSearch;
+// Delegação de evento como salvaguarda: garante funcionamento mesmo se o
+// handler inline falhar em algum contexto (ex.: CSP mais restritiva).
+document.addEventListener('click', e => {
+  const header = e.target.closest('.ps-header');
+  if (header) togglePartsSearch(header);
+});
 
 function buildPartsSearchCard(partsUsed) {
   if (!partsUsed) return '';
@@ -1701,7 +1722,7 @@ function buildPartsSearchCard(partsUsed) {
     '</div>';
   }).join('');
   return '<div class="card" style="margin-bottom:.9rem;padding:.85rem 1rem">' +
-    '<div class="card-title" style="margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center" onclick="togglePartsSearch(this)">' +
+    '<div class="card-title ps-header" style="margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center">' +
       '🔎 Buscar Peças' +
       '<span class="ps-chev" style="margin-left:auto;transition:transform .2s;font-size:.9rem;color:var(--muted)">▸</span>' +
     '</div>' +
@@ -1724,20 +1745,51 @@ function populateNextSvcKm() {
   sel.appendChild(custom);
 }
 
-function prefillLastShop() {
+function renderShopPicker() {
+  const sel = $('shopPicker');
+  if (!sel) return;
+  // Remove todas as opções exceto o placeholder
+  while (sel.options.length > 1) sel.remove(1);
+  sel.value = '';
+
   const registros = state.records
-    .filter(r => r.vehicleId === state.activeId && r.shopName)
+    .filter(r => r.vehicleId === state.activeId && r.shopName && r.shopName.trim())
     .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
-  if (!registros.length) {
-    showToast('⚠️ Nenhuma oficina encontrada no histórico deste veículo.');
+
+  // Deduplica por shopName (case-insensitive), mantendo o registro mais recente
+  const seen = new Map();
+  for (const r of registros) {
+    const key = r.shopName.trim().toLowerCase();
+    if (!seen.has(key)) seen.set(key, r);
+  }
+  const oficinas = [...seen.values()]
+    .sort((a, b) => a.shopName.localeCompare(b.shopName, 'pt-BR', { sensitivity: 'base' }));
+
+  if (!oficinas.length) {
+    sel.disabled = true;
     return;
   }
-  const r = registros[0];
-  $('shopName').value  = r.shopName  || '';
-  $('shopPhone').value = r.shopPhone || '';
-  $('shopAddr').value  = r.shopAddr  || '';
-  $('techName').value  = r.techName  || '';
+  sel.disabled = false;
+  oficinas.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.shopName;
+    sel.appendChild(opt);
+  });
 }
+
+function onShopPickerChange(sel) {
+  const r = state.records.find(x => x.id === sel.value);
+  if (r) {
+    $('shopName').value  = r.shopName  || '';
+    $('shopPhone').value = r.shopPhone || '';
+    $('shopAddr').value  = r.shopAddr  || '';
+    $('techName').value  = r.techName  || '';
+  }
+  // Reseta o select para o placeholder
+  sel.value = '';
+}
+window.onShopPickerChange = onShopPickerChange;
 
 function fmtKm(input) {
   const digits = input.value.replace(/\D/g, '');
@@ -1786,7 +1838,7 @@ function addSvcRecord() {
     addedAt: new Date().toISOString()
   };
   state.records.push(rec);
-  save(); renderStats(); renderHistory();
+  save(); renderStats(); renderHistory(); renderShopPicker();
   clearSvcForm();
   showToast('✅ Registro de serviço salvo!');
 }
@@ -1795,6 +1847,7 @@ function clearSvcForm() {
   ['svcDate','svcMileage','svcOther','svcNotes','partsUsed',
    'partsCost','laborCost','taxAmt','totalCost',
    'shopName','shopPhone','shopAddr','techName'].forEach(id => $(id).value='');
+  if ($('shopPicker')) $('shopPicker').value = '';
   $('nextSvcKm').value = '';
   $('nextSvcMeses').value = '';
   $('nextSvcKmCustom').style.display = 'none';
@@ -1877,7 +1930,7 @@ function showDetail(id) {
     $('delMsg').textContent = 'Excluir este registro de serviço permanentemente?';
     $('delConfirmBtn').onclick = () => {
       state.records = state.records.filter(x=>x.id!==id);
-      save(); renderStats(); renderHistory();
+      save(); renderStats(); renderHistory(); renderShopPicker();
       closeModal('delModal'); closeModal('detailModal');
       showToast('🗑 Registro excluído.');
     };
