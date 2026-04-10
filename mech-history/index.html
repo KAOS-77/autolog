@@ -114,7 +114,11 @@ textarea{resize:vertical;min-height:72px}
 .stypes{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-bottom:.45rem}
 .stype-chk{display:flex;align-items:center;gap:.38rem;padding:.38rem .5rem;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:.78rem;transition:all .12s;user-select:none}
 .stype-chk:hover{border-color:var(--mech);background:var(--mech-lt)}
-.stype-chk input[type=checkbox]{width:auto;margin:0;accent-color:var(--mech)}
+.stype-chk input[type=checkbox]{display:none}
+.chk-box{width:14px;height:14px;border:1.5px solid var(--border);border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle;flex-shrink:0;position:relative;transition:all .12s}
+.stype-chk input:checked ~ .chk-box{background:var(--mech);border-color:var(--mech)}
+.stype-chk input:checked ~ .chk-box::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;line-height:1}
+.stype-chk:has(input:checked){border-color:var(--mech);background:var(--mech-lt)}
 
 /* ── Dollar prefix ── */
 .pfx{position:relative}
@@ -221,7 +225,7 @@ textarea{resize:vertical;min-height:72px}
       <div class="card-title">👤 Informações do Proprietário</div>
       <div class="row2">
         <div class="fg"><label>Nome Completo</label><input id="ownerName" type="text" placeholder="João Silva"></div>
-        <div class="fg"><label>Telefone</label><input id="ownerPhone" type="tel" placeholder="(11) 90000-0000"></div>
+        <div class="fg"><label>Telefone</label><input id="ownerPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
       </div>
       <div class="row2">
         <div class="fg"><label>Email</label><input id="ownerEmail" type="email" placeholder="joao@exemplo.com"></div>
@@ -308,14 +312,118 @@ textarea{resize:vertical;min-height:72px}
         <div class="divider">Oficina / Técnico</div>
         <div class="row2">
           <div class="fg"><label>Nome da Oficina</label><input id="shopName" type="text" placeholder="Auto Center Plus"></div>
-          <div class="fg"><label>Telefone da Oficina</label><input id="shopPhone" type="tel" placeholder="(11) 90000-0000"></div>
+          <div class="fg"><label>Telefone da Oficina</label><input id="shopPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
         </div>
         <div class="fg"><label>Endereço da Oficina</label><input id="shopAddr" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
         <div class="row2">
           <div class="fg"><label>Nome do Técnico</label><input id="techName" type="text" placeholder="Carlos Silva"></div>
-          <div class="fg"><label>Próximo Serviço</label><input id="nextSvc" type="text" placeholder="ex: 50.000 km ou 6 meses"></div>
         </div>
-        <div class="fg"><label>Garantia</label><input id="warranty" type="text" placeholder="ex: 12 meses / 20.000 km"></div>
+        <div class="fg">
+          <label>Próximo Serviço</label>
+          <div class="row2">
+            <div>
+              <select id="nextSvcKm" onchange="document.getElementById('nextSvcKmCustom').style.display=this.value==='custom'?'block':'none'">
+                <option value="">-- Por Km --</option>
+                <option value="1500">1.500 km</option>
+                <option value="3000">3.000 km</option>
+                <option value="4500">4.500 km</option>
+                <option value="6000">6.000 km</option>
+                <option value="7500">7.500 km</option>
+                <option value="9000">9.000 km</option>
+                <option value="10500">10.500 km</option>
+                <option value="12000">12.000 km</option>
+                <option value="15000">15.000 km</option>
+                <option value="20000">20.000 km</option>
+                <option value="30000">30.000 km</option>
+                <option value="custom">Outro valor...</option>
+              </select>
+              <input type="number" id="nextSvcKmCustom" min="1" step="500" placeholder="Digite os km" style="display:none;margin-top:.35rem">
+            </div>
+            <select id="nextSvcMeses">
+              <option value="">-- Por Meses --</option>
+              <option value="1">1 mês</option>
+              <option value="2">2 meses</option>
+              <option value="3">3 meses</option>
+              <option value="4">4 meses</option>
+              <option value="5">5 meses</option>
+              <option value="6">6 meses</option>
+              <option value="7">7 meses</option>
+              <option value="8">8 meses</option>
+              <option value="9">9 meses</option>
+              <option value="10">10 meses</option>
+              <option value="11">11 meses</option>
+              <option value="12">12 meses</option>
+              <option value="13">13 meses</option>
+              <option value="14">14 meses</option>
+              <option value="15">15 meses</option>
+              <option value="16">16 meses</option>
+              <option value="17">17 meses</option>
+              <option value="18">18 meses</option>
+              <option value="19">19 meses</option>
+              <option value="20">20 meses</option>
+              <option value="21">21 meses</option>
+              <option value="22">22 meses</option>
+              <option value="23">23 meses</option>
+              <option value="24">24 meses</option>
+              <option value="25">25 meses</option>
+              <option value="26">26 meses</option>
+              <option value="27">27 meses</option>
+              <option value="28">28 meses</option>
+              <option value="29">29 meses</option>
+              <option value="30">30 meses</option>
+              <option value="31">31 meses</option>
+              <option value="32">32 meses</option>
+              <option value="33">33 meses</option>
+              <option value="34">34 meses</option>
+              <option value="35">35 meses</option>
+              <option value="36">36 meses</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Garantia</label>
+          <select id="warrantyMeses" onchange="document.getElementById('warrantyCustom').style.display=this.value==='custom'?'block':'none'">
+            <option value="">-- Sem garantia --</option>
+            <option value="1">1 mês</option>
+            <option value="2">2 meses</option>
+            <option value="3">3 meses</option>
+            <option value="4">4 meses</option>
+            <option value="5">5 meses</option>
+            <option value="6">6 meses</option>
+            <option value="7">7 meses</option>
+            <option value="8">8 meses</option>
+            <option value="9">9 meses</option>
+            <option value="10">10 meses</option>
+            <option value="11">11 meses</option>
+            <option value="12">12 meses</option>
+            <option value="13">13 meses</option>
+            <option value="14">14 meses</option>
+            <option value="15">15 meses</option>
+            <option value="16">16 meses</option>
+            <option value="17">17 meses</option>
+            <option value="18">18 meses</option>
+            <option value="19">19 meses</option>
+            <option value="20">20 meses</option>
+            <option value="21">21 meses</option>
+            <option value="22">22 meses</option>
+            <option value="23">23 meses</option>
+            <option value="24">24 meses</option>
+            <option value="25">25 meses</option>
+            <option value="26">26 meses</option>
+            <option value="27">27 meses</option>
+            <option value="28">28 meses</option>
+            <option value="29">29 meses</option>
+            <option value="30">30 meses</option>
+            <option value="31">31 meses</option>
+            <option value="32">32 meses</option>
+            <option value="33">33 meses</option>
+            <option value="34">34 meses</option>
+            <option value="35">35 meses</option>
+            <option value="36">36 meses</option>
+            <option value="custom">Outro prazo...</option>
+          </select>
+          <input type="text" id="warrantyCustom" placeholder="Ex: 2 anos" style="display:none;margin-top:.35rem">
+        </div>
 
         <div style="display:flex;gap:.65rem;margin-top:.9rem">
           <button class="btn btn-success btn-block" onclick="addSvcRecord()">✅ Salvar Registro de Serviço</button>
@@ -1364,6 +1472,32 @@ function load() {
 function save() { localStorage.setItem('autolog', JSON.stringify(state)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
+function formatPlaca(el) {
+  // Remove tudo que não é letra ou dígito
+  let raw = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  // Valida cada posição conforme padrão brasileiro (AAA-NXNN)
+  // Pos 0-2: letra | Pos 3: dígito | Pos 4: letra ou dígito | Pos 5-6: dígito
+  const validators = [
+    c => /[A-Z]/.test(c),  // 0: letra
+    c => /[A-Z]/.test(c),  // 1: letra
+    c => /[A-Z]/.test(c),  // 2: letra
+    c => /[0-9]/.test(c),  // 3: dígito
+    c => /[A-Z0-9]/.test(c), // 4: letra ou dígito (Mercosul vs antigo)
+    c => /[0-9]/.test(c),  // 5: dígito
+    c => /[0-9]/.test(c),  // 6: dígito
+  ];
+  let filtered = '';
+  for (let i = 0; i < raw.length && i < validators.length; i++) {
+    if (validators[i](raw[i])) filtered += raw[i];
+    else break; // bloqueia o caractere inválido e tudo depois
+  }
+  // Insere hífen automaticamente após 3 caracteres
+  if (filtered.length > 3) {
+    filtered = filtered.slice(0, 3) + '-' + filtered.slice(3);
+  }
+  el.value = filtered;
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  YEAR HELPERS
 // ═══════════════════════════════════════════════════════════════
@@ -1386,7 +1520,8 @@ function populateEl(el, items, placeholder, disabled) {
 }
 function resetFrom(step) {
   if (step <= 1) populateEl($('selModelo'), [], '— Selecione o Modelo —', true);
-  if (step <= 2) populateEl($('selEspec'), [], '— Selecione o Ano —', true);
+  if (step <= 2) populateEl($('selEspec'), [], '— Selecione a Especificação —', true);
+  if (step <= 3) populateEl($('selAno'), [], '— Selecione o Ano —', true);
 }
 function onMarcaChange() {
   resetFrom(1);
@@ -1398,8 +1533,14 @@ function onModeloChange() {
   resetFrom(2);
   const marca = $('selMarca').value, modelo = $('selModelo').value;
   if (!marca || !modelo) return;
-  const years = expandYears(DB[marca][modelo] || []);
-  populateEl($('selEspec'), years, '— Selecione o Ano —', false);
+  populateEl($('selEspec'), Object.keys(DB[marca][modelo] || {}), '— Selecione a Especificação —', false);
+}
+function onEspecChange() {
+  resetFrom(3);
+  const marca = $('selMarca').value, modelo = $('selModelo').value, espec = $('selEspec').value;
+  if (!marca || !modelo || !espec) return;
+  const years = expandYears(DB[marca][modelo][espec] || []);
+  populateEl($('selAno'), years, '— Selecione o Ano —', false);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1407,17 +1548,18 @@ function onModeloChange() {
 // ═══════════════════════════════════════════════════════════════
 function saveVehicle() {
   const marca=$('selMarca').value, modelo=$('selModelo').value,
-        espec=$('selEspec').value, ownerName=$('ownerName').value.trim();
-  if (!marca||!modelo||!espec) { showToast('⚠️ Selecione a marca, o modelo e o ano primeiro.'); return; }
+        espec=$('selEspec').value, ano=$('selAno').value,
+        ownerName=$('ownerName').value.trim();
+  if (!marca||!modelo||!espec||!ano) { showToast('⚠️ Selecione a marca, o modelo, a especificação e o ano primeiro.'); return; }
   if (!ownerName) { showToast('⚠️ Insira o nome do proprietário.'); return; }
 
   const veh = {
-    id: uid(), make:marca, model:modelo, year:+espec,
+    id: uid(), make:marca, model:modelo, trim:espec, year:+ano,
     color: $('vehColor').value.trim(),
     vin: $('vehicleVin').value.trim().toUpperCase(),
     ownerName, ownerPhone:$('ownerPhone').value.trim(),
     ownerEmail:$('ownerEmail').value.trim(),
-    purchaseDate:$('purchaseDate').value,
+    plate: $('vehiclePlaca').value.trim(),
     currentMileage:$('curMileage').value ? +$('curMileage').value : null,
     addedAt: new Date().toISOString()
   };
@@ -1431,11 +1573,11 @@ function saveVehicle() {
 }
 
 function clearOwnerForm() {
-  ['selMarca','selModelo','selEspec'].forEach(id => {
+  ['selMarca','selModelo','selEspec','selAno'].forEach(id => {
     const el = $(id); el.value = '';
     if (id !== 'selMarca') el.disabled = true;
   });
-  ['ownerName','ownerPhone','ownerEmail','vehicleVin','purchaseDate','curMileage','vehColor'].forEach(id => $(id).value='');
+  ['ownerName','ownerPhone','ownerEmail','vehiclePlaca','vehicleVin','curMileage','vehColor'].forEach(id => $(id).value='');
 }
 
 function selectVehicle(id) {
@@ -1449,12 +1591,13 @@ function selectVehicle(id) {
   if (!v) return;
   $('selMarca').value = v.make; onMarcaChange();
   $('selModelo').value = v.model; onModeloChange();
-  $('selEspec').value = v.year;
+  $('selEspec').value = v.trim || ''; onEspecChange();
+  $('selAno').value = v.year;
   $('ownerName').value = v.ownerName;
   $('ownerPhone').value = v.ownerPhone;
   $('ownerEmail').value = v.ownerEmail;
   $('vehicleVin').value = v.vin;
-  $('purchaseDate').value = v.purchaseDate;
+  $('vehiclePlaca').value = v.plate || '';
   $('curMileage').value = v.currentMileage||'';
   $('vehColor').value = v.color||'';
 }
@@ -1568,8 +1711,17 @@ function addSvcRecord() {
     shopPhone: $('shopPhone').value.trim(),
     shopAddr: $('shopAddr').value.trim(),
     techName: $('techName').value.trim(),
-    nextService: $('nextSvc').value.trim(),
-    warranty: $('warranty').value.trim(),
+    nextService: (() => {
+      const km = $('nextSvcKm').value;
+      const meses = $('nextSvcMeses').value;
+      const kmVal = km === 'custom' ? (parseInt($('nextSvcKmCustom').value)||0).toLocaleString('pt-BR') + ' km' : km ? Number(km).toLocaleString('pt-BR') + ' km' : '';
+      const mesesVal = meses ? (meses === '1' ? '1 mês' : meses + ' meses') : '';
+      return [kmVal, mesesVal].filter(Boolean).join(' / ');
+    })(),
+    warranty: (() => {
+      const wm = $('warrantyMeses').value;
+      return wm === 'custom' ? $('warrantyCustom').value.trim() : wm ? (wm === '1' ? '1 mês' : wm + ' meses') : '';
+    })(),
     addedAt: new Date().toISOString()
   };
   state.records.push(rec);
@@ -1581,7 +1733,14 @@ function addSvcRecord() {
 function clearSvcForm() {
   ['svcDate','svcMileage','svcOther','svcNotes','partsUsed',
    'partsCost','laborCost','taxAmt','totalCost',
-   'shopName','shopPhone','shopAddr','techName','nextSvc','warranty'].forEach(id => $(id).value='');
+   'shopName','shopPhone','shopAddr','techName'].forEach(id => $(id).value='');
+  $('nextSvcKm').value = '';
+  $('nextSvcMeses').value = '';
+  $('nextSvcKmCustom').style.display = 'none';
+  $('nextSvcKmCustom').value = '';
+  $('warrantyMeses').value = '';
+  $('warrantyCustom').style.display = 'none';
+  $('warrantyCustom').value = '';
   document.querySelectorAll('#svcTypeChecks input').forEach(c=>c.checked=false);
   toggleSvcForm();
 }
@@ -1707,7 +1866,7 @@ function $(id) { return document.getElementById(id); }
   SVC_TYPES.forEach(t => {
     const label = document.createElement('label');
     label.className = 'stype-chk';
-    label.innerHTML = `<input type="checkbox" value="${t}"> ${t}`;
+    label.innerHTML = `<input type="checkbox" value="${t}"><span class="chk-box"></span> ${t}`;
     svcContainer.appendChild(label);
   });
 
@@ -1716,6 +1875,90 @@ function $(id) { return document.getElementById(id); }
   updateMechPanel();
   updateBadge();
 })();
+
+// --- AUDITORIA DB (descartável) ---
+function auditarDB() {
+  const marcas = Object.keys(DB);
+  const totalMarcas = marcas.length;
+  let totalModelos = 0;
+  let totalCombinacoes = 0; // marca+modelo+trim
+  const somenteBase = {};   // marca -> [{modelo, anoMin, anoMax}]
+  const baseComOutros = {};  // marca -> [{modelo, trims[], anoMinBase, anoMaxBase}]
+  let countSomenteBase = 0;
+  let countMultiplosTrims = 0;
+
+  for (const marca of marcas) {
+    const modelos = Object.keys(DB[marca]);
+    totalModelos += modelos.length;
+
+    for (const modelo of modelos) {
+      const trims = Object.keys(DB[marca][modelo]);
+      totalCombinacoes += trims.length;
+
+      if (trims.length === 1 && trims[0] === 'Base') {
+        countSomenteBase++;
+        const ranges = DB[marca][modelo]['Base'];
+        const anoMin = Math.min(...ranges.map(r => r[0]));
+        const anoMax = Math.max(...ranges.map(r => r[1]));
+        if (!somenteBase[marca]) somenteBase[marca] = [];
+        somenteBase[marca].push({ modelo, anoMin, anoMax });
+      } else {
+        countMultiplosTrims++;
+
+        if (trims.includes('Base') && trims.length > 1) {
+          const ranges = DB[marca][modelo]['Base'];
+          const anoMin = Math.min(...ranges.map(r => r[0]));
+          const anoMax = Math.max(...ranges.map(r => r[1]));
+          if (!baseComOutros[marca]) baseComOutros[marca] = [];
+          baseComOutros[marca].push({
+            modelo,
+            trims: trims.filter(t => t !== 'Base'),
+            anoMinBase: anoMin,
+            anoMaxBase: anoMax
+          });
+        }
+      }
+    }
+  }
+
+  console.group('%c=== AUDITORIA DB ===', 'font-weight:bold;font-size:14px;color:#2563eb');
+
+  console.log(`Total de marcas: ${totalMarcas}`);
+  console.log(`Total de modelos: ${totalModelos}`);
+  console.log(`Total de combinações (marca+modelo+trim): ${totalCombinacoes}`);
+
+  console.log('');
+  console.log(`Modelos com APENAS trim "Base": ${countSomenteBase}`);
+  console.log(`Modelos com múltiplos trims (ou trim único != Base): ${countMultiplosTrims}`);
+
+  console.group('%cModelos com APENAS "Base" (por marca)', 'font-weight:bold;color:#d97706');
+  for (const marca of Object.keys(somenteBase).sort()) {
+    const lista = somenteBase[marca];
+    console.group(marca + ` (${lista.length})`);
+    for (const { modelo, anoMin, anoMax } of lista) {
+      console.log(`${marca} > ${modelo} (intervalo de anos: ${anoMin}-${anoMax})`);
+    }
+    console.groupEnd();
+  }
+  console.groupEnd();
+
+  console.group('%cModelos onde "Base" coexiste com outros trims', 'font-weight:bold;color:#059669');
+  for (const marca of Object.keys(baseComOutros).sort()) {
+    const lista = baseComOutros[marca];
+    console.group(marca + ` (${lista.length})`);
+    for (const { modelo, trims, anoMinBase, anoMaxBase } of lista) {
+      console.log(`${marca} > ${modelo} — Base (${anoMinBase}-${anoMaxBase}) + [${trims.join(', ')}]`);
+    }
+    console.groupEnd();
+  }
+  console.groupEnd();
+
+  console.groupEnd();
+}
+
+if (new URLSearchParams(window.location.search).get('auditDB') === '1') {
+  auditarDB();
+}
 </script>
 </body>
 </html>
