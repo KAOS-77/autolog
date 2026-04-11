@@ -28,9 +28,22 @@ header{background:#0f172a;color:#fff;position:sticky;top:0;z-index:100;box-shado
 #activeBadge.show{display:block}
 #activeBadge strong{display:block;color:#fff;font-size:.9rem}
 
+/* ── View nav (SPA) ── */
+.viewnav{display:flex;gap:.4rem;flex-wrap:wrap}
+.viewnav .nav-btn{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);color:#cbd5e1;padding:.5rem .95rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.viewnav .nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.viewnav .nav-btn.active{background:linear-gradient(135deg,#2563eb,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.35)}
+.viewnav .nav-btn .nav-ico{font-size:.95rem}
+@media(max-width:640px){
+  .hdr{flex-wrap:wrap}
+  .viewnav{order:3;width:100%;justify-content:center}
+  .viewnav .nav-btn{flex:1}
+}
+
 /* ── Layout ── */
-.wrap{max-width:1440px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
-@media(max-width:1024px){.wrap{grid-template-columns:1fr}}
+.wrap{max-width:860px;margin:0 auto;padding:1.5rem;display:block}
+.wrap > section{display:none}
+.wrap > section.view-active{display:block}
 
 /* ── Section labels ── */
 .sec-hdr{display:flex;align-items:center;gap:.7rem;margin-bottom:1.1rem}
@@ -157,7 +170,7 @@ textarea{resize:vertical;min-height:72px}
 /* ── Toast ── */
 #toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:#1e293b;color:#fff;padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;z-index:2000;transition:transform .3s;white-space:nowrap;pointer-events:none}
 #toast.show{transform:translateX(-50%) translateY(0)}
-@media print{header{position:static}.btn,.overlay{display:none!important}.wrap{grid-template-columns:1fr}}
+@media print{header{position:static}.btn,.overlay{display:none!important}.wrap > section{display:block!important}}
 </style>
 </head>
 <body>
@@ -171,6 +184,14 @@ textarea{resize:vertical;min-height:72px}
         <p>Gerenciador de Histórico de Serviços</p>
       </div>
     </div>
+    <nav class="viewnav" role="tablist" aria-label="Navegação principal">
+      <button type="button" class="nav-btn" id="navOwnerBtn" role="tab" aria-selected="true" onclick="switchView('owner')">
+        <span class="nav-ico">🚗</span> Proprietário
+      </button>
+      <button type="button" class="nav-btn" id="navMechBtn" role="tab" aria-selected="false" onclick="switchView('mechanic')">
+        <span class="nav-ico">🔧</span> Mecânico/Oficina
+      </button>
+    </nav>
     <div id="activeBadge">
       <strong id="badgeVehicle"></strong>
       <span id="badgeOwner"></span>
@@ -279,6 +300,7 @@ textarea{resize:vertical;min-height:72px}
       <div class="ico">⚠️</div>
       <strong>Nenhum Veículo Selecionado</strong>
       <p style="margin-top:.25rem;font-size:.84rem">Selecione ou salve um veículo na Área do Proprietário primeiro.</p>
+      <button type="button" class="btn btn-primary btn-sm" style="margin-top:.8rem" onclick="switchView('owner')">🚗 Ir para Proprietário</button>
     </div>
 
     <!-- Add Service Record -->
@@ -1464,12 +1486,44 @@ const SVC_TYPES = [
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════════════════════
 const CURR_YEAR = new Date().getFullYear();
-let state = { vehicles: [], records: [], activeId: null };
+let state = { vehicles: [], records: [], activeId: null, view: 'owner' };
 
 function load() {
-  try { state = JSON.parse(localStorage.getItem('autolog') || 'null') || state; } catch(e) {}
+  try {
+    const parsed = JSON.parse(localStorage.getItem('autolog') || 'null');
+    if (parsed) state = Object.assign({ vehicles: [], records: [], activeId: null }, parsed);
+  } catch(e) {}
+  // view é estado de sessão, nunca persiste
+  state.view = 'owner';
 }
-function save() { localStorage.setItem('autolog', JSON.stringify(state)); }
+function save() {
+  // não persistir state.view no localStorage (é estado de sessão)
+  const { view, ...persisted } = state;
+  localStorage.setItem('autolog', JSON.stringify(persisted));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVEGAÇÃO POR VIEWS (SPA)
+// ═══════════════════════════════════════════════════════════════
+function switchView(v) {
+  if (v !== 'owner' && v !== 'mechanic') v = 'owner';
+  state.view = v;
+  const ownerSec = document.querySelector('.owner-col');
+  const mechSec  = document.querySelector('.mech-col');
+  if (ownerSec) ownerSec.classList.toggle('view-active', v === 'owner');
+  if (mechSec)  mechSec.classList.toggle('view-active', v === 'mechanic');
+  const ownerBtn = $('navOwnerBtn'), mechBtn = $('navMechBtn');
+  if (ownerBtn) {
+    ownerBtn.classList.toggle('active', v === 'owner');
+    ownerBtn.setAttribute('aria-selected', v === 'owner' ? 'true' : 'false');
+  }
+  if (mechBtn) {
+    mechBtn.classList.toggle('active', v === 'mechanic');
+    mechBtn.setAttribute('aria-selected', v === 'mechanic' ? 'true' : 'false');
+  }
+  // rola para o topo ao trocar de view (UX SPA)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 function formatPlaca(el) {
@@ -1571,6 +1625,9 @@ function saveVehicle() {
   updateBadge();
   showToast('✅ Veículo salvo!');
   clearOwnerForm();
+  // Cadastro novo: redireciona automaticamente para a view do Mecânico
+  // (edições usam selectVehicle/editVehicle e não passam por aqui)
+  setTimeout(() => switchView('mechanic'), 300);
 }
 
 function clearOwnerForm() {
@@ -1992,6 +2049,9 @@ function $(id) { return document.getElementById(id); }
   renderVehicleList();
   updateMechPanel();
   updateBadge();
+
+  // Inicializa a view (SPA) — sempre começa em 'owner'
+  switchView(state.view || 'owner');
 })();
 
 // --- AUDITORIA DB (descartável) ---
