@@ -134,6 +134,9 @@ textarea{resize:vertical;min-height:72px}
 .stype-chk input:checked ~ .chk-box::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;line-height:1}
 .stype-chk:has(input:checked){border-color:var(--mech);background:var(--mech-lt)}
 
+/* ── Self-service badge ── */
+.self-svc-badge{background:#dbeafe;color:#2563eb;font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:4px;white-space:nowrap}
+
 /* ── Dollar prefix ── */
 .pfx{position:relative}
 .pfx::before{content:'$';position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:500;pointer-events:none}
@@ -273,6 +276,41 @@ textarea{resize:vertical;min-height:72px}
       <ul class="vlist" id="vehicleList">
         <li class="empty"><div class="empty-ico">🚗</div>Nenhum veículo salvo ainda</li>
       </ul>
+    </div>
+
+    <!-- Self-Service Maintenance -->
+    <div class="card" id="selfSvcCard" style="display:none">
+      <div class="card-title">
+        🔩 Registrar Manutenção Própria
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="toggleSelfSvcForm()" id="selfSvcToggleBtn">Expandir</button>
+      </div>
+      <div id="selfSvcForm" style="display:none">
+        <div class="row2">
+          <div class="fg"><label>Data do Serviço</label><input id="selfSvcDate" type="date"></div>
+          <div class="fg"><label>Quilometragem</label><input id="selfSvcMileage" type="text" inputmode="numeric" placeholder="45.000" oninput="fmtKm(this)"></div>
+        </div>
+        <div class="fg">
+          <label>Serviços Realizados</label>
+          <div class="stypes" id="selfSvcTypeChecks"></div>
+          <input id="selfSvcOther" type="text" placeholder="Outro / descrição personalizada...">
+        </div>
+        <div class="fg"><label>Notas / Observações</label><textarea id="selfSvcNotes" placeholder="Descrição do que foi feito..."></textarea></div>
+        <div class="fg">
+          <label>Peças Utilizadas</label>
+          <textarea id="selfSvcParts" placeholder="Liste as peças trocadas ou instaladas..." style="min-height:58px"></textarea>
+        </div>
+        <div class="fg">
+          <label>Custo das Peças (R$)</label>
+          <div class="pfx"><input id="selfSvcPartsCost" type="number" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="fg">
+          <label>Próxima Revisão Prevista</label>
+          <input id="selfSvcNextService" type="date">
+        </div>
+        <div style="display:flex;gap:.65rem;margin-top:.9rem">
+          <button class="btn btn-primary btn-block" onclick="addSelfSvcRecord()">💾 Salvar Manutenção</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1705,6 +1743,7 @@ function updateMechPanel() {
   $('statsCard').style.display     = active ? '' : 'none';
   $('addSvcCard').style.display    = active ? '' : 'none';
   $('histCard').style.display      = active ? '' : 'none';
+  if ($('selfSvcCard')) $('selfSvcCard').style.display = active ? '' : 'none';
   if (active) { renderStats(); renderHistory(); renderShopPicker(); }
 }
 
@@ -1860,6 +1899,51 @@ function calcTotal() {
   $('totalCost').value = (p+l+t).toFixed(2);
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  MANUTENÇÃO PRÓPRIA DO PROPRIETÁRIO
+// ═══════════════════════════════════════════════════════════════
+function toggleSelfSvcForm() {
+  const form = $('selfSvcForm'), btn = $('selfSvcToggleBtn');
+  const open = form.style.display === 'none';
+  form.style.display = open ? '' : 'none';
+  btn.textContent = open ? 'Recolher' : 'Expandir';
+  if (open) {
+    const today = new Date().toISOString().split('T')[0];
+    if (!$('selfSvcDate').value) $('selfSvcDate').value = today;
+  }
+}
+
+function addSelfSvcRecord() {
+  const date = $('selfSvcDate').value;
+  const mileageRaw = $('selfSvcMileage').value;
+  if (!date) { showToast('⚠️ Informe a data do serviço.'); return; }
+  if (!mileageRaw) { showToast('⚠️ Informe a quilometragem.'); return; }
+  const types = [...document.querySelectorAll('#selfSvcTypeChecks input:checked')].map(c=>c.value);
+  const other = $('selfSvcOther').value.trim();
+  if (other) types.push(other);
+  const partsCost = parseFloat($('selfSvcPartsCost').value) || 0;
+  const rec = {
+    id: uid(), vehicleId: state.activeId,
+    date, mileage: parseInt(mileageRaw.replace(/\./g,'')) || null,
+    serviceTypes: types, notes: $('selfSvcNotes').value.trim(),
+    partsUsed: $('selfSvcParts').value.trim(),
+    partsCost, laborCost: 0, taxAmount: 0, totalCost: partsCost,
+    shopName: '', shopPhone: '', shopAddr: '', techName: '',
+    nextService: $('selfSvcNextService').value || '',
+    warranty: '', addedAt: new Date().toISOString(),
+    selfService: true
+  };
+  state.records.push(rec);
+  save(); renderStats(); renderHistory();
+  // limpar e recolher formulário
+  ['selfSvcDate','selfSvcMileage','selfSvcOther','selfSvcNotes','selfSvcParts','selfSvcPartsCost','selfSvcNextService']
+    .forEach(id => $(id).value='');
+  document.querySelectorAll('#selfSvcTypeChecks input').forEach(c=>c.checked=false);
+  $('selfSvcForm').style.display = 'none';
+  $('selfSvcToggleBtn').textContent = 'Expandir';
+  showToast('✅ Manutenção registrada!');
+}
+
 function addSvcRecord() {
   const types = [...document.querySelectorAll('#svcTypeChecks input:checked')].map(c=>c.value);
   const other = $('svcOther').value.trim();
@@ -1929,11 +2013,14 @@ function renderHistory() {
     const types = (r.serviceTypes||[]).join(', ') || 'Serviço';
     const shortTypes = types.length > 45 ? types.slice(0,45)+'…' : types;
     const dateStr = r.date ? new Date(r.date+'T00:00:00').toLocaleDateString('pt-BR',{year:'numeric',month:'short',day:'numeric'}) : '—';
+    const badge = r.selfService
+      ? `<span class="self-svc-badge">🔩 Proprietário</span>`
+      : `<span class="stype-badge">Serviço</span>`;
     return `
     <div class="srec">
       <div class="srec-hdr" onclick="showDetail('${r.id}')">
         <div class="smeta">
-          <span class="stype-badge">Serviço</span>
+          ${badge}
           <span class="sdate">${dateStr}</span>
           ${r.mileage?`<span class="smile">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
           <span style="font-size:.78rem;color:var(--muted);display:block;width:100%;margin-top:.1rem">${shortTypes}</span>
@@ -1956,15 +2043,16 @@ function showDetail(id) {
       <strong>${v.year} ${v.make} ${v.model}</strong> · Proprietário: ${v.ownerName}
       ${r.mileage?` · <span style="color:var(--muted)">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
     </div>`:''}
+    ${r.selfService?`<div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:.55rem .9rem;margin-bottom:.9rem;font-size:.84rem;color:#1d4ed8">🔩 Manutenção realizada pelo proprietário</div>`:''}
     <div class="detail-grid">
       <div class="di"><label>Data</label><span>${dateStr}</span></div>
       <div class="di"><label>Quilometragem</label><span>${r.mileage?r.mileage.toLocaleString('pt-BR')+' km':'—'}</span></div>
-      ${r.shopName?`<div class="di"><label>Oficina</label><span>${r.shopName}</span></div>`:''}
-      ${r.shopPhone?`<div class="di"><label>Tel. da Oficina</label><span>${r.shopPhone}</span></div>`:''}
-      ${r.shopAddr?`<div class="di" style="grid-column:span 2"><label>Endereço da Oficina</label><span>${r.shopAddr}</span></div>`:''}
-      ${r.techName?`<div class="di"><label>Técnico</label><span>${r.techName}</span></div>`:''}
-      ${r.nextService?`<div class="di"><label>Próximo Serviço</label><span>${r.nextService}</span></div>`:''}
-      ${r.warranty?`<div class="di" style="grid-column:span 2"><label>Garantia</label><span>${r.warranty}</span></div>`:''}
+      ${!r.selfService && r.shopName?`<div class="di"><label>Oficina</label><span>${r.shopName}</span></div>`:''}
+      ${!r.selfService && r.shopPhone?`<div class="di"><label>Tel. da Oficina</label><span>${r.shopPhone}</span></div>`:''}
+      ${!r.selfService && r.shopAddr?`<div class="di" style="grid-column:span 2"><label>Endereço da Oficina</label><span>${r.shopAddr}</span></div>`:''}
+      ${!r.selfService && r.techName?`<div class="di"><label>Técnico</label><span>${r.techName}</span></div>`:''}
+      ${r.nextService?`<div class="di"><label>Próximo Serviço</label><span>${r.selfService?new Date(r.nextService+'T00:00:00').toLocaleDateString('pt-BR'):r.nextService}</span></div>`:''}
+      ${!r.selfService && r.warranty?`<div class="di" style="grid-column:span 2"><label>Garantia</label><span>${r.warranty}</span></div>`:''}
     </div>
     ${r.serviceTypes?.length?`
     <div style="margin-bottom:.75rem">
@@ -2033,13 +2121,18 @@ function $(id) { return document.getElementById(id); }
   const marcaSel = $('selMarca');
   Object.keys(DB).sort().forEach(m => marcaSel.innerHTML += `<option value="${m}">${m}</option>`);
 
-  // Build service type checkboxes
+  // Build service type checkboxes (mechanic form + self-service form)
   const svcContainer = $('svcTypeChecks');
+  const selfSvcContainer = $('selfSvcTypeChecks');
   SVC_TYPES.forEach(t => {
     const label = document.createElement('label');
     label.className = 'stype-chk';
     label.innerHTML = `<input type="checkbox" value="${t}"><span class="chk-box"></span> ${t}`;
     svcContainer.appendChild(label);
+    const label2 = document.createElement('label');
+    label2.className = 'stype-chk';
+    label2.innerHTML = `<input type="checkbox" value="${t}"><span class="chk-box"></span> ${t}`;
+    selfSvcContainer.appendChild(label2);
   });
 
   // Popular dropdown de km do próximo serviço (1.500 → 300.000 km)
