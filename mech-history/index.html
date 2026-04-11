@@ -134,6 +134,16 @@ textarea{resize:vertical;min-height:72px}
 .stype-chk input:checked ~ .chk-box::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;line-height:1}
 .stype-chk:has(input:checked){border-color:var(--mech);background:var(--mech-lt)}
 
+/* ── Shake animation ── */
+@keyframes shake {
+  0%,100%{transform:translateX(0)}
+  20%    {transform:translateX(-6px)}
+  40%    {transform:translateX(6px)}
+  60%    {transform:translateX(-4px)}
+  80%    {transform:translateX(4px)}
+}
+.shake{animation:shake 450ms ease}
+
 /* ── Self-service badge ── */
 .self-svc-badge{background:#dbeafe;color:#2563eb;font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:4px;white-space:nowrap}
 
@@ -191,7 +201,7 @@ textarea{resize:vertical;min-height:72px}
       <button type="button" class="nav-btn" id="navOwnerBtn" role="tab" aria-selected="true" onclick="switchView('owner')">
         <span class="nav-ico">🚗</span> Proprietário
       </button>
-      <button type="button" class="nav-btn" id="navMechBtn" role="tab" aria-selected="false" onclick="switchView('mechanic')">
+      <button type="button" class="nav-btn" id="navMechBtn" role="tab" aria-selected="false" onclick="tryAccessMechanic()">
         <span class="nav-ico">🔧</span> Mecânico/Oficina
       </button>
     </nav>
@@ -276,6 +286,25 @@ textarea{resize:vertical;min-height:72px}
       <ul class="vlist" id="vehicleList">
         <li class="empty"><div class="empty-ico">🚗</div>Nenhum veículo salvo ainda</li>
       </ul>
+    </div>
+
+    <!-- Credentialed Shops -->
+    <div class="card" id="shopsCard">
+      <div class="card-title">🏪 Oficinas Credenciadas</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:.65rem;align-items:flex-end">
+        <div class="fg" style="margin-bottom:0">
+          <label for="newShopName">Nome da oficina</label>
+          <input type="text" id="newShopName" placeholder="Ex.: Mecânica do João" maxlength="60" autocomplete="off">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="addShop()">+ Adicionar</button>
+      </div>
+      <div id="shopList" style="margin-top:.9rem"></div>
+      <hr style="margin:1rem 0;border:none;border-top:1px solid var(--border)">
+      <div class="card-title" style="margin-bottom:.6rem">
+        🕓 Acessos Recentes
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAccessLog()">Limpar histórico</button>
+      </div>
+      <div id="accessLogList"></div>
     </div>
 
     <!-- Self-Service Maintenance -->
@@ -527,6 +556,32 @@ textarea{resize:vertical;min-height:72px}
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('detailModal')">Fechar</button>
       <button class="btn btn-danger" id="detailDelBtn">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mechanic Auth Modal -->
+<div class="overlay" id="mechAuthModal" role="dialog" aria-modal="true" aria-labelledby="mechAuthTitle">
+  <div class="modal" style="max-width:380px">
+    <div class="mhdr">
+      <h3 id="mechAuthTitle">🔒 Acesso Mecânico/Oficina</h3>
+      <button class="mclose" onclick="closeMechAuth()" aria-label="Fechar">✕</button>
+    </div>
+    <div style="padding:.4rem 0 .8rem">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:1rem;text-align:center">Digite o código de 6 dígitos da sua oficina</p>
+      <div class="fg">
+        <input type="text" id="mechCodeInput" inputmode="numeric" maxlength="7" autocomplete="off"
+               placeholder="000 000"
+               style="text-align:center;font-size:1.4rem;letter-spacing:.15em;font-weight:700"
+               onkeydown="if(event.key==='Enter') attemptMechLogin()">
+      </div>
+      <p id="mechAuthError" style="display:none;color:var(--danger);font-size:.82rem;text-align:center;margin-top:.5rem">
+        Código inválido. Verifique e tente novamente.
+      </p>
+    </div>
+    <div class="mfoot">
+      <button type="button" class="btn btn-ghost" onclick="closeMechAuth()">Cancelar</button>
+      <button type="button" class="btn btn-success" onclick="attemptMechLogin()">Entrar</button>
     </div>
   </div>
 </div>
@@ -1524,15 +1579,19 @@ const SVC_TYPES = [
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════════════════════
 const CURR_YEAR = new Date().getFullYear();
-let state = { vehicles: [], records: [], activeId: null, view: 'owner' };
+let state = { vehicles: [], records: [], activeId: null, view: 'owner', shops: [], accessLog: [] };
+let mechUnlocked = false;
 
 function load() {
   try {
     const parsed = JSON.parse(localStorage.getItem('autolog') || 'null');
-    if (parsed) state = Object.assign({ vehicles: [], records: [], activeId: null }, parsed);
+    if (parsed) state = Object.assign({ vehicles: [], records: [], activeId: null, shops: [], accessLog: [] }, parsed);
   } catch(e) {}
   // view é estado de sessão, nunca persiste
   state.view = 'owner';
+  // retrocompatibilidade com dados salvos antes desta feature
+  if (!Array.isArray(state.shops))     state.shops     = [];
+  if (!Array.isArray(state.accessLog)) state.accessLog = [];
 }
 function save() {
   // não persistir state.view no localStorage (é estado de sessão)
@@ -2085,6 +2144,117 @@ function showDetail(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  OFICINAS CREDENCIADAS & ACESSO RESTRITO
+// ═══════════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function genCode() { return String(Math.floor(Math.random() * 900000) + 100000); }
+function formatCode(code) { return code.slice(0,3) + ' ' + code.slice(3); }
+
+function addShop() {
+  const nameEl = $('newShopName');
+  const name = nameEl.value.trim();
+  if (!name) { showToast('⚠️ Informe o nome da oficina.'); return; }
+  const shop = { id: uid(), name, code: genCode() };
+  state.shops.push(shop);
+  save(); nameEl.value = '';
+  renderShopsCard();
+  showToast('✅ Oficina adicionada com código ' + formatCode(shop.code));
+}
+
+function resetShopCode(id) {
+  const shop = state.shops.find(s=>s.id===id);
+  if (!shop) return;
+  shop.code = genCode(); save(); renderShopsCard();
+  showToast('🔄 Novo código gerado: ' + formatCode(shop.code));
+}
+
+function removeShop(id) {
+  state.shops = state.shops.filter(s=>s.id!==id);
+  save(); renderShopsCard();
+  showToast('🗑 Oficina removida.');
+}
+
+function clearAccessLog() {
+  state.accessLog = []; save(); renderShopsCard();
+  showToast('🗑 Histórico de acessos limpo.');
+}
+
+function renderShopsCard() {
+  const shopListEl = $('shopList'), logListEl = $('accessLogList');
+  if (!shopListEl || !logListEl) return;
+
+  if (state.shops.length === 0) {
+    shopListEl.innerHTML = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.5rem 0">Nenhuma oficina credenciada. Adicione uma oficina para liberar o acesso ao painel Mecânico.</p>';
+  } else {
+    shopListEl.innerHTML = state.shops.map(s =>
+      `<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem .7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;gap:.5rem">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.88rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.name)}</div>
+          <div style="font-size:.78rem;color:var(--muted);font-family:monospace;letter-spacing:.08em">Código: <strong>${formatCode(s.code)}</strong></div>
+        </div>
+        <div style="display:flex;gap:.4rem;flex-shrink:0">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="resetShopCode('${s.id}')">Resetar</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeShop('${s.id}')">Remover</button>
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  const log = [...state.accessLog].reverse();
+  if (log.length === 0) {
+    logListEl.innerHTML = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.3rem 0">Nenhum acesso registrado ainda.</p>';
+  } else {
+    logListEl.innerHTML = log.map(entry => {
+      const dt = new Date(entry.timestamp);
+      const formatted = dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:.83rem;padding:.35rem 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--txt);font-weight:500">${escHtml(entry.shopName)}</span>
+        <span style="color:var(--muted)">${formatted}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function tryAccessMechanic() {
+  if (mechUnlocked) { switchView('mechanic'); return; }
+  if (state.shops.length === 0) {
+    showToast('⚠️ Cadastre ao menos uma oficina credenciada para liberar o acesso.');
+    return;
+  }
+  openModal('mechAuthModal');
+  setTimeout(() => { const inp = $('mechCodeInput'); if (inp) inp.focus(); }, 100);
+}
+
+function closeMechAuth() {
+  closeModal('mechAuthModal');
+  const inp = $('mechCodeInput'); if (inp) inp.value = '';
+  const err = $('mechAuthError'); if (err) err.style.display = 'none';
+}
+
+function attemptMechLogin() {
+  const inp = $('mechCodeInput'), err = $('mechAuthError');
+  const raw = inp.value.replace(/\D/g,'');
+  const shop = state.shops.find(s=>s.code===raw);
+  if (shop) {
+    mechUnlocked = true;
+    state.accessLog.push({ shopName: shop.name, timestamp: new Date().toISOString() });
+    if (state.accessLog.length > 30) state.accessLog.shift();
+    save();
+    closeMechAuth();
+    switchView('mechanic');
+  } else {
+    err.style.display = 'block';
+    inp.classList.remove('shake');
+    void inp.offsetWidth;
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 500);
+    inp.focus();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  MODAL HELPERS
 // ═══════════════════════════════════════════════════════════════
 function openModal(id) { $(id).classList.add('show'); }
@@ -2145,6 +2315,9 @@ function $(id) { return document.getElementById(id); }
 
   // Inicializa a view (SPA) — sempre começa em 'owner'
   switchView(state.view || 'owner');
+
+  // Renderiza card de oficinas credenciadas
+  renderShopsCard();
 })();
 
 // --- AUDITORIA DB (descartável) ---
