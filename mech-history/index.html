@@ -184,9 +184,37 @@ textarea{resize:vertical;min-height:72px}
 #toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:#1e293b;color:#fff;padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;z-index:2000;transition:transform .3s;white-space:nowrap;pointer-events:none}
 #toast.show{transform:translateX(-50%) translateY(0)}
 @media print{header{position:static}.btn,.overlay{display:none!important}.wrap > section{display:block!important}}
+
+/* ── Dark Mode ── */
+.dark-mode{--bg:#0f172a;--surface:#1e293b;--border:#334155;--txt:#e2e8f0;--muted:#94a3b8;--owner-lt:#1e3a5f;--mech-lt:#0f3d2e;--sh:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);--sh2:0 4px 6px rgba(0,0,0,.25),0 2px 4px rgba(0,0,0,.2);--sh3:0 10px 15px rgba(0,0,0,.35),0 4px 6px rgba(0,0,0,.25)}
+.dark-mode header{background:#020617;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.dark-mode input,.dark-mode select,.dark-mode textarea{background:#1e293b;color:#e2e8f0;border-color:#475569}
+.dark-mode input:focus,.dark-mode select:focus,.dark-mode textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.dark-mode select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E")}
+.dark-mode select:disabled{background-color:#1e293b;color:#64748b}
+.dark-mode .srec-hdr{background:#1e293b;border-bottom-color:#334155}
+.dark-mode .srec-hdr:hover{background:#253349}
+.dark-mode .vitem:hover{border-color:var(--owner);background:#1e3a5f}
+.dark-mode .vitem.active{border-color:var(--owner);background:#1e3a5f}
+.dark-mode .modal{background:#1e293b}
+.dark-mode .no-veh{background:#422006;border-color:#78350f;color:#fbbf24}
+.dark-mode .stype-chk:hover{background:#0f3d2e;border-color:var(--mech)}
+.dark-mode .stype-chk:has(input:checked){background:#0f3d2e;border-color:var(--mech)}
+.dark-mode #toast{background:#e2e8f0;color:#0f172a}
+.dark-mode .btn-ghost{color:#94a3b8;border-color:#475569}
+.dark-mode .btn-ghost:hover{background:#334155;color:#e2e8f0}
+.dark-mode .btn-danger{background:#3b1111;color:#f87171;border-color:#7f1d1d}
+.dark-mode .btn-danger:hover{background:#ef4444;color:#fff}
+.dark-mode .pfx::before{color:#94a3b8}
+.dark-mode .overlay{background:rgba(0,0,0,.7)}
+.dark-mode .viewnav .nav-btn{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+.dark-mode .viewnav .nav-btn:hover{background:rgba(255,255,255,.1)}
+#themeToggle{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);color:#cbd5e1;padding:.5rem .95rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+#themeToggle:hover{background:rgba(255,255,255,.12);color:#fff}
 </style>
 </head>
 <body>
+<script>if(localStorage.getItem('autolog_theme')==='dark')document.body.classList.add('dark-mode');</script>
 
 <header>
   <div class="hdr">
@@ -209,6 +237,8 @@ textarea{resize:vertical;min-height:72px}
       <strong id="badgeVehicle"></strong>
       <span id="badgeOwner"></span>
     </div>
+    <button type="button" id="themeToggle" onclick="toggleTheme()" aria-label="Alternar tema"></button>
+    <script>document.getElementById('themeToggle').textContent=document.body.classList.contains('dark-mode')?'Modo Claro':'Modo Escuro';</script>
   </div>
 </header>
 
@@ -2280,6 +2310,16 @@ function showToast(msg) {
 //  UTILITY
 // ═══════════════════════════════════════════════════════════════
 function $(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════════════════════
+//  THEME TOGGLE
+// ═══════════════════════════════════════════════════════════════
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('autolog_theme', isDark ? 'dark' : 'light');
+  const btn = $('themeToggle');
+  if (btn) btn.textContent = isDark ? 'Modo Claro' : 'Modo Escuro';
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT
