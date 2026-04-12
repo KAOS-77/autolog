@@ -749,6 +749,44 @@ textarea{resize:vertical;min-height:72px}
         <div class="empty"><div class="empty-ico">📝</div>Nenhum serviço registrado ainda</div>
       </div>
     </div>
+
+    <!-- Proprietários Vinculados -->
+    <div class="card" id="shopInvitationsCard">
+      <div class="card-title">👥 Proprietários Vinculados</div>
+
+      <!-- Form de convite -->
+      <div class="fg" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+        <input type="email" id="shopInviteEmail" placeholder="E-mail do proprietário" autocomplete="off" style="flex:1;min-width:180px">
+        <button type="button" class="btn btn-primary" onclick="sendOwnerInvite()">Convidar</button>
+      </div>
+
+      <!-- Estado vazio -->
+      <div id="shopInvEmpty" class="empty" style="display:none">
+        <div class="empty-ico">👥</div>
+        Nenhum proprietário vinculado. Envie um convite pelo e-mail do proprietário.
+      </div>
+
+      <!-- Pendentes -->
+      <div id="shopInvPendingWrap" style="display:none;margin-bottom:.8rem">
+        <div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">PENDENTES</div>
+        <ul id="shopInvPendingList" style="list-style:none;padding:0;margin:0"></ul>
+      </div>
+
+      <!-- Aceitos -->
+      <div id="shopInvAcceptedWrap" style="display:none;margin-bottom:.8rem">
+        <div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">ACEITOS</div>
+        <ul id="shopInvAcceptedList" style="list-style:none;padding:0;margin:0"></ul>
+      </div>
+
+      <!-- Rejeitados / Revogados (colapsável) -->
+      <div id="shopInvRejectedWrap" style="display:none">
+        <div style="display:flex;align-items:center;cursor:pointer;font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:.4rem" onclick="toggleRejectedInvitations()">
+          <span>REJEITADOS / REVOGADOS</span>
+          <span id="shopInvRejectedCaret" style="margin-left:.4rem">▾</span>
+        </div>
+        <ul id="shopInvRejectedList" style="list-style:none;padding:0;margin:0;display:none"></ul>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -2106,11 +2144,185 @@ async function loadShopDashboard() {
     // Aplica filtro atual (se houver)
     const filtro = ($('shopHistorySearch')?.value || '').trim();
     renderShopHistory(shopRecordsCache, filtro);
+    // Carrega convites enviados (proprietários vinculados)
+    loadSentInvitations();
   } catch (err) {
     if (err.message !== 'Sessão expirada') {
       showToast(err.message || 'Erro ao carregar painel da oficina');
     }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PROPRIETÁRIOS VINCULADOS (convites enviados pela oficina)
+// ═══════════════════════════════════════════════════════════════
+async function loadSentInvitations() {
+  try {
+    const list = await shopApiGet('/invitations/sent');
+    renderSentInvitations(Array.isArray(list) ? list : []);
+  } catch (err) {
+    if (err.message !== 'Sessão expirada') {
+      console.error('Erro ao carregar convites enviados:', err);
+    }
+  }
+}
+
+function renderSentInvitations(list) {
+  const pending  = list.filter(i => i.status === 'pending');
+  const accepted = list.filter(i => i.status === 'accepted');
+  const rejected = list.filter(i => i.status === 'rejected' || i.status === 'revoked');
+
+  const emptyEl = document.getElementById('shopInvEmpty');
+  const allEmpty = pending.length === 0 && accepted.length === 0 && rejected.length === 0;
+  if (emptyEl) emptyEl.style.display = allEmpty ? '' : 'none';
+
+  // Pendentes
+  const pendWrap = document.getElementById('shopInvPendingWrap');
+  const pendList = document.getElementById('shopInvPendingList');
+  if (pending.length > 0) {
+    pendWrap.style.display = '';
+    pendList.innerHTML = pending.map(i => {
+      const email = i.owner_email || i.ownerEmail || '';
+      return `
+        <li style="padding:.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;word-break:break-all">${escapeHtml(email)}</div>
+            <div style="font-size:.78rem;color:var(--muted)">Enviado em ${fmtInvDate(i.created_at)}</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="cancelInvitation(${i.id})">Cancelar convite</button>
+        </li>
+      `;
+    }).join('');
+  } else {
+    pendWrap.style.display = 'none';
+    pendList.innerHTML = '';
+  }
+
+  // Aceitos
+  const accWrap = document.getElementById('shopInvAcceptedWrap');
+  const accList = document.getElementById('shopInvAcceptedList');
+  if (accepted.length > 0) {
+    accWrap.style.display = '';
+    accList.innerHTML = accepted.map(i => {
+      const email = i.owner_email || i.ownerEmail || '';
+      const name  = i.owner_name || i.ownerName || '';
+      return `
+        <li style="padding:.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            ${name ? `<div style="font-weight:700">${escapeHtml(name)}</div>` : ''}
+            <div style="${name ? 'font-size:.82rem;color:var(--muted);' : 'font-weight:700;'}word-break:break-all">${escapeHtml(email)}</div>
+          </div>
+          <span style="font-size:.72rem;font-weight:700;color:#166534;background:#dcfce7;padding:.2rem .5rem;border-radius:999px">Ativo</span>
+        </li>
+      `;
+    }).join('');
+  } else {
+    accWrap.style.display = 'none';
+    accList.innerHTML = '';
+  }
+
+  // Rejeitados / Revogados
+  const rejWrap = document.getElementById('shopInvRejectedWrap');
+  const rejList = document.getElementById('shopInvRejectedList');
+  if (rejected.length > 0) {
+    rejWrap.style.display = '';
+    rejList.innerHTML = rejected.map(i => {
+      const email = i.owner_email || i.ownerEmail || '';
+      const name  = i.owner_name || i.ownerName || '';
+      const statusTxt = i.status === 'rejected' ? 'Recusado' : 'Revogado';
+      const color = i.status === 'rejected' ? '#b45309' : '#991b1b';
+      return `
+        <li style="padding:.55rem .7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            ${name ? `<div style="font-weight:600">${escapeHtml(name)}</div>` : ''}
+            <div style="${name ? 'font-size:.78rem;color:var(--muted);' : 'font-weight:600;'}word-break:break-all">${escapeHtml(email)}</div>
+          </div>
+          <span style="font-size:.72rem;font-weight:700;color:${color}">${statusTxt}</span>
+          <button class="btn btn-primary btn-sm" onclick="resendInvitation('${escapeHtml(email).replace(/'/g,"\\'")}')">Reenviar convite</button>
+        </li>
+      `;
+    }).join('');
+  } else {
+    rejWrap.style.display = 'none';
+    rejList.innerHTML = '';
+  }
+}
+
+function toggleRejectedInvitations() {
+  const list = document.getElementById('shopInvRejectedList');
+  const caret = document.getElementById('shopInvRejectedCaret');
+  if (!list) return;
+  const open = list.style.display === 'none';
+  list.style.display = open ? '' : 'none';
+  if (caret) caret.textContent = open ? '▴' : '▾';
+}
+
+async function sendOwnerInvite(prefilledEmail) {
+  const input = document.getElementById('shopInviteEmail');
+  const email = (prefilledEmail || (input ? input.value : '') || '').trim();
+  if (!email || !/.+@.+\..+/.test(email)) {
+    showToast('Informe um e-mail válido');
+    return;
+  }
+  try {
+    const res = await fetch(API_BASE + '/invitations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(state.token ? { 'Authorization': 'Bearer ' + state.token } : {})
+      },
+      body: JSON.stringify({ ownerEmail: email })
+    });
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (res.status === 401) { logoutShop(); return; }
+    if (res.status === 201 || res.ok) {
+      if (input && !prefilledEmail) input.value = '';
+      await loadSentInvitations();
+      if (data && data.error && /n[aã]o encontrado/i.test(data.error)) {
+        showToast('Proprietário não encontrado. O convite ficará pendente até que ele se cadastre.');
+      } else {
+        showToast('Convite enviado');
+      }
+      return;
+    }
+    if (res.status === 409) {
+      showToast(data.error || 'Já existe um convite para este proprietário');
+      return;
+    }
+    if (res.status === 404 || (data && data.error && /n[aã]o encontrado/i.test(data.error))) {
+      showToast('Proprietário não encontrado. O convite ficará pendente até que ele se cadastre.');
+      return;
+    }
+    showToast(data.error || 'Erro ao enviar convite');
+  } catch (err) {
+    showToast('Erro ao enviar convite');
+  }
+}
+
+async function cancelInvitation(id) {
+  try {
+    const res = await fetch(API_BASE + '/invitations/' + id, {
+      method: 'DELETE',
+      headers: state.token ? { 'Authorization': 'Bearer ' + state.token } : {}
+    });
+    if (res.status === 401) { logoutShop(); return; }
+    if (!res.ok && res.status !== 204) {
+      let msg = 'Erro ao cancelar convite';
+      try { const d = await res.json(); msg = d.error || msg; } catch {}
+      showToast(msg);
+      return;
+    }
+    await loadSentInvitations();
+    showToast('Convite cancelado');
+  } catch (err) {
+    showToast('Erro ao cancelar convite');
+  }
+}
+
+function resendInvitation(email) {
+  if (!email) return;
+  sendOwnerInvite(email);
 }
 
 function renderShopHistory(records, filtro = '') {
