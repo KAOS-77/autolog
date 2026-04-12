@@ -163,6 +163,7 @@ textarea{resize:vertical;min-height:72px}
 
 /* ── Self-service badge ── */
 .self-svc-badge{background:#dbeafe;color:#2563eb;font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:4px;white-space:nowrap}
+.record-shop-badge{display:inline-block;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:.7rem;font-weight:600;padding:.2rem .55rem;border-radius:999px;margin-top:.35rem;white-space:nowrap}
 
 /* ── Dollar prefix ── */
 .pfx{position:relative}
@@ -1926,7 +1927,8 @@ function recordFromApi(r) {
     shopAddr: r.shop_addr, techName: r.tech_name,
     nextService: r.next_service, warranty: r.warranty,
     addedAt: r.added_at,
-    selfService: r.self_service || false
+    selfService: r.self_service || false,
+    shopUserId: r.shop_user_id ?? null
   };
 }
 function recordToApi(r) {
@@ -3437,14 +3439,19 @@ function renderHistory() {
     const badge = r.selfService
       ? `<span class="self-svc-badge">🔩 Proprietário</span>`
       : `<span class="stype-badge">Serviço</span>`;
+    const isShopRecord = r.shopUserId != null;
+    const shopBadge = isShopRecord
+      ? `<span class="record-shop-badge" title="Registro inserido por oficina — não editável">🔧 Inserido pela oficina${r.shopName?` · ${escHtml(r.shopName)}`:''}</span>`
+      : '';
     return `
-    <div class="srec">
+    <div class="srec"${isShopRecord?' data-shop-record="1"':''}>
       <div class="srec-hdr" onclick="showDetail('${r.id}')">
         <div class="smeta">
           ${badge}
           <span class="sdate">${dateStr}</span>
           ${r.mileage?`<span class="smile">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
           <span style="font-size:.78rem;color:var(--muted);display:block;width:100%;margin-top:.1rem">${shortTypes}</span>
+          ${shopBadge}
         </div>
         <span class="scost">${r.totalCost?'R$'+r.totalCost.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</span>
       </div>
@@ -3465,6 +3472,7 @@ function showDetail(id) {
       ${r.mileage?` · <span style="color:var(--muted)">${r.mileage.toLocaleString('pt-BR')} km</span>`:''}
     </div>`:''}
     ${r.selfService?`<div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:.55rem .9rem;margin-bottom:.9rem;font-size:.84rem;color:#1d4ed8">🔩 Manutenção realizada pelo proprietário</div>`:''}
+    ${r.shopUserId!=null?`<div style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:8px;padding:.55rem .9rem;margin-bottom:.9rem;font-size:.84rem;color:#0369a1">🔧 Serviço registrado por oficina${r.shopName?`: <strong>${escHtml(r.shopName)}</strong>`:''}</div>`:''}
     <div class="detail-grid">
       <div class="di"><label>Data</label><span>${dateStr}</span></div>
       <div class="di"><label>Quilometragem</label><span>${r.mileage?r.mileage.toLocaleString('pt-BR')+' km':'—'}</span></div>
@@ -3492,16 +3500,27 @@ function showDetail(id) {
       <div><div style="font-size:.7rem;color:var(--muted);text-transform:uppercase">Total</div><div style="font-weight:800;color:var(--mech);font-size:1rem">R$${(r.totalCost||0).toFixed(2)}</div></div>
     </div>`;
 
-  $('detailDelBtn').onclick = () => {
-    $('delMsg').textContent = 'Excluir este registro de serviço permanentemente?';
-    $('delConfirmBtn').onclick = () => {
-      state.records = state.records.filter(x=>x.id!==id);
-      save(); renderStats(); renderHistory(); renderShopPicker();
-      closeModal('delModal'); closeModal('detailModal');
-      showToast('🗑 Registro excluído.');
+  const delBtn = $('detailDelBtn');
+  if (r.shopUserId != null) {
+    delBtn.style.display = 'none';
+    delBtn.disabled = true;
+    delBtn.title = 'Registro inserido por oficina — não editável';
+    delBtn.onclick = null;
+  } else {
+    delBtn.style.display = '';
+    delBtn.disabled = false;
+    delBtn.title = '';
+    delBtn.onclick = () => {
+      $('delMsg').textContent = 'Excluir este registro de serviço permanentemente?';
+      $('delConfirmBtn').onclick = () => {
+        state.records = state.records.filter(x=>x.id!==id);
+        save(); renderStats(); renderHistory(); renderShopPicker();
+        closeModal('delModal'); closeModal('detailModal');
+        showToast('🗑 Registro excluído.');
+      };
+      openModal('delModal');
     };
-    openModal('delModal');
-  };
+  }
   openModal('detailModal');
 }
 
