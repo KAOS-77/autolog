@@ -383,6 +383,19 @@ textarea{resize:vertical;min-height:72px}
       </div>
     </div>
 
+    <!-- Credentialed Shops (Mech view) -->
+    <div class="card" id="mechShopsCard">
+      <div class="card-title">🏪 Oficinas Credenciadas</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:.65rem;align-items:flex-end">
+        <div class="fg" style="margin-bottom:0">
+          <label for="mechShopName">Nome da oficina</label>
+          <input type="text" id="mechShopName" placeholder="Ex.: Mecânica do João" maxlength="60" autocomplete="off">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="addShopFromMech()">+ Adicionar</button>
+      </div>
+      <div id="mechShopList" style="margin-top:.9rem"></div>
+    </div>
+
     <!-- Stats (shown when vehicle active) -->
     <div class="card" id="statsCard" style="display:none">
       <div class="stats">
@@ -2182,8 +2195,9 @@ function escHtml(str) {
 function genCode() { return String(Math.floor(Math.random() * 900000) + 100000); }
 function formatCode(code) { return code.slice(0,3) + ' ' + code.slice(3); }
 
-function addShop() {
-  const nameEl = $('newShopName');
+function addShop(inputId) {
+  inputId = inputId || 'newShopName';
+  const nameEl = $(inputId);
   const name = nameEl.value.trim();
   if (!name) { showToast('⚠️ Informe o nome da oficina.'); return; }
   const shop = { id: uid(), name, code: genCode() };
@@ -2192,6 +2206,7 @@ function addShop() {
   renderShopsCard();
   showToast('✅ Oficina adicionada com código ' + formatCode(shop.code));
 }
+function addShopFromMech() { addShop('mechShopName'); }
 
 function resetShopCode(id) {
   const shop = state.shops.find(s=>s.id===id);
@@ -2212,13 +2227,13 @@ function clearAccessLog() {
 }
 
 function renderShopsCard() {
-  const shopListEl = $('shopList'), logListEl = $('accessLogList');
-  if (!shopListEl || !logListEl) return;
-
+  // Build shop list HTML once, reuse for both views
+  const emptyMsg = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.5rem 0">Nenhuma oficina credenciada. Adicione uma oficina para liberar o acesso ao painel Mecânico.</p>';
+  let shopHtml;
   if (state.shops.length === 0) {
-    shopListEl.innerHTML = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.5rem 0">Nenhuma oficina credenciada. Adicione uma oficina para liberar o acesso ao painel Mecânico.</p>';
+    shopHtml = emptyMsg;
   } else {
-    shopListEl.innerHTML = state.shops.map(s =>
+    shopHtml = state.shops.map(s =>
       `<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem .7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;gap:.5rem">
         <div style="flex:1;min-width:0">
           <div style="font-size:.88rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.name)}</div>
@@ -2232,18 +2247,30 @@ function renderShopsCard() {
     ).join('');
   }
 
-  const log = [...state.accessLog].reverse();
-  if (log.length === 0) {
-    logListEl.innerHTML = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.3rem 0">Nenhum acesso registrado ainda.</p>';
-  } else {
-    logListEl.innerHTML = log.map(entry => {
-      const dt = new Date(entry.timestamp);
-      const formatted = dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:.83rem;padding:.35rem 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--txt);font-weight:500">${escHtml(entry.shopName)}</span>
-        <span style="color:var(--muted)">${formatted}</span>
-      </div>`;
-    }).join('');
+  // Owner view shop list
+  const shopListEl = $('shopList');
+  if (shopListEl) shopListEl.innerHTML = shopHtml;
+
+  // Mech view shop list
+  const mechShopListEl = $('mechShopList');
+  if (mechShopListEl) mechShopListEl.innerHTML = shopHtml;
+
+  // Owner view access log (exclusive to owner)
+  const logListEl = $('accessLogList');
+  if (logListEl) {
+    const log = [...state.accessLog].reverse();
+    if (log.length === 0) {
+      logListEl.innerHTML = '<p style="font-size:.83rem;color:var(--muted);text-align:center;padding:.3rem 0">Nenhum acesso registrado ainda.</p>';
+    } else {
+      logListEl.innerHTML = log.map(entry => {
+        const dt = new Date(entry.timestamp);
+        const formatted = dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:.83rem;padding:.35rem 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--txt);font-weight:500">${escHtml(entry.shopName)}</span>
+          <span style="color:var(--muted)">${formatted}</span>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
