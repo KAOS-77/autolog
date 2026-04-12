@@ -55,6 +55,12 @@ header{background:#0f172a;color:#fff;position:sticky;top:0;z-index:100;box-shado
 .owner-col .badge-label{background:var(--owner-lt);color:var(--owner)}
 .mech-col  .badge-label{background:var(--mech-lt);color:var(--mech)}
 
+/* ── Mech Access Card ── */
+.mech-access-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+@media(max-width:560px){.mech-access-grid{grid-template-columns:1fr}}
+.mech-access-block{padding:1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.mech-access-heading{font-size:.92rem;font-weight:700;color:var(--txt);margin-bottom:.5rem}
+
 /* ── Cards ── */
 .card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:1.15rem;box-shadow:var(--sh);margin-bottom:1rem}
 .card:last-child{margin-bottom:0}
@@ -229,7 +235,7 @@ textarea{resize:vertical;min-height:72px}
       <button type="button" class="nav-btn" id="navOwnerBtn" role="tab" aria-selected="true" onclick="switchView('owner')">
         <span class="nav-ico">🚗</span> Proprietário
       </button>
-      <button type="button" class="nav-btn" id="navMechBtn" role="tab" aria-selected="false" onclick="tryAccessMechanic()">
+      <button type="button" class="nav-btn" id="navMechBtn" role="tab" aria-selected="false" onclick="switchView('mechanic')">
         <span class="nav-ico">🔧</span> Mecânico/Oficina
       </button>
     </nav>
@@ -364,17 +370,45 @@ textarea{resize:vertical;min-height:72px}
       </div>
     </div>
 
-    <!-- Credentialed Shops (Mech view) -->
-    <div class="card" id="mechShopsCard">
-      <div class="card-title">🏪 Oficinas Credenciadas</div>
-      <div style="display:grid;grid-template-columns:1fr auto;gap:.65rem;align-items:flex-end">
-        <div class="fg" style="margin-bottom:0">
-          <label for="mechShopName">Nome da oficina</label>
-          <input type="text" id="mechShopName" placeholder="Ex.: Mecânica do João" maxlength="60" autocomplete="off">
+    <!-- Card de Acesso Mecânico (login / cadastro) -->
+    <div class="card" id="mechAccessCard">
+      <div class="card-title">🔒 Acesso à Área do Mecânico</div>
+      <div class="mech-access-grid">
+        <!-- Bloco Esquerdo: Nova Oficina -->
+        <div class="mech-access-block">
+          <h4 class="mech-access-heading">Nova Oficina</h4>
+          <p style="font-size:.83rem;color:var(--muted);margin-bottom:.8rem">Cadastre sua oficina para obter um código de acesso.</p>
+          <div class="fg" style="margin-bottom:.7rem">
+            <label for="mechNewShopName">Nome da oficina</label>
+            <input type="text" id="mechNewShopName" placeholder="Ex.: Mecânica do João" maxlength="60" autocomplete="off">
+          </div>
+          <button type="button" class="btn btn-primary" style="width:100%" onclick="registerAndLogin()">Cadastrar</button>
         </div>
-        <button type="button" class="btn btn-primary" onclick="addShopFromMech()">+ Adicionar</button>
+        <!-- Bloco Direito: Já sou cadastrado -->
+        <div class="mech-access-block">
+          <h4 class="mech-access-heading">Já sou cadastrado</h4>
+          <div id="mechLoginContent">
+            <p style="font-size:.83rem;color:var(--muted);margin-bottom:.8rem">Digite o código de 6 dígitos da sua oficina.</p>
+            <div class="fg" style="margin-bottom:.7rem">
+              <label for="mechLoginCode">Código de acesso</label>
+              <input type="text" id="mechLoginCode" inputmode="numeric" maxlength="7" autocomplete="off"
+                     placeholder="000 000"
+                     style="text-align:center;font-size:1.3rem;letter-spacing:.12em;font-weight:700"
+                     oninput="formatMechCodeInput(this)"
+                     onkeydown="if(event.key==='Enter') mechLogin()">
+            </div>
+            <p id="mechLoginError" style="display:none;color:var(--danger);font-size:.82rem;text-align:center;margin-bottom:.6rem">
+              Código inválido. Verifique e tente novamente.
+            </p>
+            <button type="button" class="btn btn-success" id="mechLoginBtn" style="width:100%" onclick="mechLogin()">Entrar</button>
+          </div>
+          <div id="mechLoginEmpty" style="display:none">
+            <p style="font-size:.85rem;color:var(--muted);text-align:center;padding:1.5rem 0">
+              Nenhuma oficina cadastrada ainda.<br>Use o bloco ao lado para se registrar.
+            </p>
+          </div>
+        </div>
       </div>
-      <div id="mechShopList" style="margin-top:.9rem"></div>
     </div>
 
     <!-- Stats (shown when vehicle active) -->
@@ -584,31 +618,6 @@ textarea{resize:vertical;min-height:72px}
   </div>
 </div>
 
-<!-- Mechanic Auth Modal -->
-<div class="overlay" id="mechAuthModal" role="dialog" aria-modal="true" aria-labelledby="mechAuthTitle">
-  <div class="modal" style="max-width:380px">
-    <div class="mhdr">
-      <h3 id="mechAuthTitle">🔒 Acesso Mecânico/Oficina</h3>
-      <button class="mclose" onclick="closeMechAuth()" aria-label="Fechar">✕</button>
-    </div>
-    <div style="padding:.4rem 0 .8rem">
-      <p style="font-size:.88rem;color:var(--muted);margin-bottom:1rem;text-align:center">Digite o código de 6 dígitos da sua oficina</p>
-      <div class="fg">
-        <input type="text" id="mechCodeInput" inputmode="numeric" maxlength="7" autocomplete="off"
-               placeholder="000 000"
-               style="text-align:center;font-size:1.4rem;letter-spacing:.15em;font-weight:700"
-               onkeydown="if(event.key==='Enter') attemptMechLogin()">
-      </div>
-      <p id="mechAuthError" style="display:none;color:var(--danger);font-size:.82rem;text-align:center;margin-top:.5rem">
-        Código inválido. Verifique e tente novamente.
-      </p>
-    </div>
-    <div class="mfoot">
-      <button type="button" class="btn btn-ghost" onclick="closeMechAuth()">Cancelar</button>
-      <button type="button" class="btn btn-success" onclick="attemptMechLogin()">Entrar</button>
-    </div>
-  </div>
-</div>
 
 <div id="toast"></div>
 
@@ -1642,6 +1651,8 @@ function switchView(v) {
     mechBtn.classList.toggle('active', v === 'mechanic');
     mechBtn.setAttribute('aria-selected', v === 'mechanic' ? 'true' : 'false');
   }
+  // Ao entrar na view mechanic, atualiza visibilidade do card de acesso
+  if (v === 'mechanic') updateMechPanel();
   // rola para o topo ao trocar de view (UX SPA)
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1821,13 +1832,16 @@ function renderVehicleList() {
 //  MECHANIC FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
 function updateMechPanel() {
+  updateMechAccessCard();
   const active = state.activeId && state.vehicles.find(x=>x.id===state.activeId);
-  $('noVehNotice').style.display   = active ? 'none' : '';
-  $('statsCard').style.display     = active ? '' : 'none';
-  $('addSvcCard').style.display    = active ? '' : 'none';
-  $('histCard').style.display      = active ? '' : 'none';
-  if ($('selfSvcCard')) $('selfSvcCard').style.display = active ? '' : 'none';
-  if (active) { renderStats(); renderHistory(); renderShopPicker(); }
+  // Conteúdo operacional só aparece quando desbloqueado
+  const showOp = mechUnlocked;
+  $('noVehNotice').style.display   = (showOp && !active) ? '' : 'none';
+  $('statsCard').style.display     = (showOp && active) ? '' : 'none';
+  $('addSvcCard').style.display    = (showOp && active) ? '' : 'none';
+  $('histCard').style.display      = (showOp && active) ? '' : 'none';
+  if ($('selfSvcCard')) $('selfSvcCard').style.display = (showOp && active) ? '' : 'none';
+  if (showOp && active) { renderStats(); renderHistory(); renderShopPicker(); }
 }
 
 function updateBadge() {
@@ -2188,7 +2202,7 @@ function addShop(inputId) {
   renderShopsCard();
   showToast('✅ Oficina adicionada com código ' + formatCode(shop.code));
 }
-function addShopFromMech() { addShop('mechShopName'); }
+
 
 function resetShopCode(id) {
   const shop = state.shops.find(s=>s.id===id);
@@ -2233,10 +2247,6 @@ function renderShopsCard() {
   const shopListEl = $('shopList');
   if (shopListEl) shopListEl.innerHTML = shopHtml;
 
-  // Mech view shop list
-  const mechShopListEl = $('mechShopList');
-  if (mechShopListEl) mechShopListEl.innerHTML = shopHtml;
-
   // Owner view access log (exclusive to owner)
   const logListEl = $('accessLogList');
   if (logListEl) {
@@ -2256,33 +2266,44 @@ function renderShopsCard() {
   }
 }
 
-function tryAccessMechanic() {
-  if (mechUnlocked) { switchView('mechanic'); return; }
-  if (state.shops.length === 0) {
-    showToast('⚠️ Cadastre ao menos uma oficina credenciada para liberar o acesso.');
-    return;
-  }
-  openModal('mechAuthModal');
-  setTimeout(() => { const inp = $('mechCodeInput'); if (inp) inp.focus(); }, 100);
+function formatMechCodeInput(el) {
+  let raw = el.value.replace(/\D/g,'').slice(0,6);
+  if (raw.length > 3) raw = raw.slice(0,3) + ' ' + raw.slice(3);
+  el.value = raw;
 }
 
-function closeMechAuth() {
-  closeModal('mechAuthModal');
-  const inp = $('mechCodeInput'); if (inp) inp.value = '';
-  const err = $('mechAuthError'); if (err) err.style.display = 'none';
+function registerAndLogin() {
+  const nameEl = $('mechNewShopName');
+  if (!nameEl) return;
+  const name = nameEl.value.trim();
+  if (!name) { showToast('⚠️ Informe o nome da oficina.'); return; }
+  const shop = { id: uid(), name, code: genCode() };
+  state.shops.push(shop);
+  mechUnlocked = true;
+  state.accessLog.push({ shopName: shop.name, timestamp: new Date().toISOString() });
+  if (state.accessLog.length > 30) state.accessLog.shift();
+  save();
+  nameEl.value = '';
+  renderShopsCard();
+  showToast('✅ Oficina cadastrada! Código: ' + formatCode(shop.code));
+  updateMechAccessCard();
+  updateMechPanel();
 }
 
-function attemptMechLogin() {
-  const inp = $('mechCodeInput'), err = $('mechAuthError');
+function mechLogin() {
+  const inp = $('mechLoginCode'), err = $('mechLoginError');
   const raw = inp.value.replace(/\D/g,'');
-  const shop = state.shops.find(s=>s.code===raw);
+  const shop = state.shops.find(s => s.code === raw);
   if (shop) {
     mechUnlocked = true;
     state.accessLog.push({ shopName: shop.name, timestamp: new Date().toISOString() });
     if (state.accessLog.length > 30) state.accessLog.shift();
     save();
-    closeMechAuth();
-    switchView('mechanic');
+    err.style.display = 'none';
+    inp.value = '';
+    renderShopsCard();
+    updateMechAccessCard();
+    updateMechPanel();
   } else {
     err.style.display = 'block';
     inp.classList.remove('shake');
@@ -2290,6 +2311,25 @@ function attemptMechLogin() {
     inp.classList.add('shake');
     setTimeout(() => inp.classList.remove('shake'), 500);
     inp.focus();
+  }
+}
+
+function updateMechAccessCard() {
+  const card = $('mechAccessCard');
+  if (!card) return;
+  // Quando desbloqueado, oculta o card de acesso
+  card.style.display = mechUnlocked ? 'none' : '';
+  // Quando bloqueado, gerencia estado do bloco de login
+  if (!mechUnlocked) {
+    const hasShops = state.shops.length > 0;
+    const loginContent = $('mechLoginContent');
+    const loginEmpty = $('mechLoginEmpty');
+    const loginBtn = $('mechLoginBtn');
+    const loginCode = $('mechLoginCode');
+    if (loginContent) loginContent.style.display = hasShops ? '' : 'none';
+    if (loginEmpty) loginEmpty.style.display = hasShops ? 'none' : '';
+    if (loginBtn) loginBtn.disabled = !hasShops;
+    if (loginCode) loginCode.disabled = !hasShops;
   }
 }
 
