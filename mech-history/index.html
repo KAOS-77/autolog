@@ -191,6 +191,22 @@ textarea{resize:vertical;min-height:72px}
 #toast.show{transform:translateX(-50%) translateY(0)}
 @media print{header{position:static}.btn,.overlay{display:none!important}.wrap > section{display:block!important}}
 
+/* ── Auth Screen ── */
+#authScreen{display:none;max-width:400px;margin:3rem auto;padding:0 1rem}
+#authScreen.show{display:block}
+.auth-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:1.8rem;box-shadow:var(--sh2)}
+.auth-card .auth-logo{text-align:center;margin-bottom:1.4rem}
+.auth-card .auth-logo .logo{width:56px;height:56px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:.6rem}
+.auth-card .auth-logo h2{font-size:1.2rem;font-weight:800;color:var(--txt)}
+.auth-card .auth-logo p{font-size:.82rem;color:var(--muted)}
+.auth-error{display:none;background:#fef2f2;border:1px solid #fecaca;color:var(--danger);font-size:.82rem;padding:.55rem .8rem;border-radius:8px;margin-top:.8rem;text-align:center}
+.auth-error.show{display:block}
+.auth-switch{text-align:center;margin-top:1rem;font-size:.82rem;color:var(--muted)}
+.auth-switch a{color:var(--owner);cursor:pointer;font-weight:600;text-decoration:none}
+.auth-switch a:hover{text-decoration:underline}
+#logoutBtn{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);color:#cbd5e1;padding:.5rem .95rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+#logoutBtn:hover{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5}
+
 /* ── Dark Mode ── */
 .dark-mode{--bg:#0f172a;--surface:#1e293b;--border:#334155;--txt:#e2e8f0;--muted:#94a3b8;--owner-lt:#1e3a5f;--mech-lt:#0f3d2e;--sh:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);--sh2:0 4px 6px rgba(0,0,0,.25),0 2px 4px rgba(0,0,0,.2);--sh3:0 10px 15px rgba(0,0,0,.35),0 4px 6px rgba(0,0,0,.25)}
 .dark-mode header{background:#020617;box-shadow:0 2px 8px rgba(0,0,0,.5)}
@@ -222,6 +238,37 @@ textarea{resize:vertical;min-height:72px}
 <body>
 <script>if(localStorage.getItem('autolog_theme')==='dark')document.body.classList.add('dark-mode');</script>
 
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo">🔧</div>
+      <h2>AutoLog</h2>
+      <p>Gerenciador de Histórico de Serviços</p>
+    </div>
+
+    <!-- Login Form -->
+    <div id="authLoginForm">
+      <div class="fg"><label for="authEmail">Email</label><input id="authEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="fg"><label for="authPass">Senha</label><input id="authPass" type="password" placeholder="Sua senha" autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()" style="margin-top:.6rem">Entrar</button>
+      <div id="authLoginError" class="auth-error"></div>
+      <div class="auth-switch">Não tem conta? <a onclick="toggleAuthMode('register')">Criar conta</a></div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="authRegisterForm" style="display:none">
+      <div class="fg"><label for="authRegEmail">Email</label><input id="authRegEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="fg"><label for="authRegPass">Senha</label><input id="authRegPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <div class="fg"><label for="authRegPass2">Confirmar Senha</label><input id="authRegPass2" type="password" placeholder="Repita a senha" autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-block" onclick="doRegister()" style="margin-top:.6rem">Criar conta</button>
+      <div id="authRegError" class="auth-error"></div>
+      <div class="auth-switch">Já tem conta? <a onclick="toggleAuthMode('login')">Entrar</a></div>
+    </div>
+  </div>
+</div>
+
+<div id="appContainer" style="display:none">
 <header>
   <div class="hdr">
     <div class="brand">
@@ -245,6 +292,7 @@ textarea{resize:vertical;min-height:72px}
     </div>
     <button type="button" id="themeToggle" onclick="toggleTheme()" aria-label="Alternar tema"></button>
     <script>document.getElementById('themeToggle').textContent=document.body.classList.contains('dark-mode')?'Modo Claro':'Modo Escuro';</script>
+    <button type="button" id="logoutBtn" onclick="logout()" aria-label="Sair da conta">Sair</button>
   </div>
 </header>
 
@@ -620,6 +668,7 @@ textarea{resize:vertical;min-height:72px}
 
 
 <div id="toast"></div>
+</div><!-- /appContainer -->
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -1609,27 +1658,259 @@ const SVC_TYPES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+//  API CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+const API_BASE = window.AUTOLOG_API_BASE || 'http://localhost:3000/api';
+
+// ═══════════════════════════════════════════════════════════════
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════════════════════
 const CURR_YEAR = new Date().getFullYear();
-let state = { vehicles: [], records: [], activeId: null, view: 'owner', shops: [], accessLog: [] };
+let state = { vehicles: [], records: [], activeId: null, view: 'owner', shops: [], accessLog: [], token: null, currentUser: null };
 let mechUnlocked = false;
+// Track which vehicles have had their records loaded from API
+const loadedRecordVehicles = new Set();
 
-function load() {
+// ── snake_case ↔ camelCase mappers ──
+function vehicleFromApi(v) {
+  return {
+    id: v.id, make: v.make, model: v.model, year: v.year, trim: v.trim,
+    ownerName: v.owner_name, ownerPhone: v.owner_phone, ownerEmail: v.owner_email,
+    mileage: v.mileage, notes: v.notes, photo: v.photo,
+    addedAt: v.added_at,
+    // extra fields parsed from notes JSON if available
+    ...parseExtraFields(v.notes)
+  };
+}
+function vehicleToApi(v) {
+  // Pack extra fields (color, vin, plate, currentMileage) into notes as JSON
+  const extra = {};
+  if (v.color) extra.color = v.color;
+  if (v.vin) extra.vin = v.vin;
+  if (v.plate) extra.plate = v.plate;
+  if (v.currentMileage) extra.currentMileage = v.currentMileage;
+  const notesPayload = Object.keys(extra).length ? JSON.stringify(extra) : (v.notes || null);
+  return {
+    id: v.id, make: v.make, model: v.model, year: v.year, trim: v.trim,
+    ownerName: v.ownerName, ownerPhone: v.ownerPhone, ownerEmail: v.ownerEmail,
+    mileage: v.mileage || v.currentMileage || null, notes: notesPayload,
+    photo: v.photo, addedAt: v.addedAt
+  };
+}
+function parseExtraFields(notes) {
+  if (!notes) return {};
+  try {
+    const parsed = JSON.parse(notes);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { color: parsed.color || '', vin: parsed.vin || '', plate: parsed.plate || '', currentMileage: parsed.currentMileage || null };
+    }
+  } catch {}
+  return {};
+}
+function recordFromApi(r) {
+  return {
+    id: r.id, vehicleId: r.vehicle_id, date: r.date, mileage: r.mileage,
+    serviceTypes: Array.isArray(r.service_types) ? r.service_types : [],
+    notes: r.notes, partsUsed: r.parts_used,
+    partsCost: r.parts_cost, laborCost: r.labor_cost,
+    taxAmount: r.tax_amount, totalCost: r.total_cost,
+    shopName: r.shop_name, shopPhone: r.shop_phone,
+    shopAddr: r.shop_addr, techName: r.tech_name,
+    nextService: r.next_service, warranty: r.warranty,
+    addedAt: r.added_at,
+    selfService: r.self_service || false
+  };
+}
+function recordToApi(r) {
+  return {
+    id: r.id, vehicleId: r.vehicleId, date: r.date, mileage: r.mileage,
+    serviceTypes: r.serviceTypes || [],
+    notes: r.notes, partsUsed: r.partsUsed,
+    partsCost: r.partsCost, laborCost: r.laborCost,
+    taxAmount: r.taxAmount, totalCost: r.totalCost,
+    shopName: r.shopName, shopPhone: r.shopPhone,
+    shopAddr: r.shopAddr, techName: r.techName,
+    nextService: r.nextService, warranty: r.warranty,
+    addedAt: r.addedAt, selfService: r.selfService || false
+  };
+}
+
+// ── API fetch wrapper ──
+async function apiFetch(path, options = {}) {
+  const url = API_BASE + path;
+  const headers = { ...options.headers };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  try {
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) { logout(); throw new Error('Sessão expirada'); }
+    if (res.status === 204) return null;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro do servidor');
+    return data;
+  } catch (err) {
+    if (err.message === 'Sessão expirada') throw err;
+    if (err instanceof TypeError) {
+      // Network error (server offline, CORS, etc.)
+      showToast('Erro de conexão com o servidor');
+      throw err;
+    }
+    throw err;
+  }
+}
+
+// ── Auth functions ──
+function toggleAuthMode(mode) {
+  const loginForm = $('authLoginForm'), regForm = $('authRegisterForm');
+  const loginErr = $('authLoginError'), regErr = $('authRegError');
+  loginErr.classList.remove('show'); regErr.classList.remove('show');
+  if (mode === 'register') {
+    loginForm.style.display = 'none'; regForm.style.display = '';
+  } else {
+    loginForm.style.display = ''; regForm.style.display = 'none';
+  }
+}
+
+async function doLogin() {
+  const email = $('authEmail').value.trim();
+  const pass = $('authPass').value;
+  const errEl = $('authLoginError');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent = 'Preencha email e senha.'; errEl.classList.add('show'); return; }
+  try {
+    const data = await fetch(API_BASE + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erro'); return d; });
+    state.token = data.token;
+    state.currentUser = data.user;
+    localStorage.setItem('autolog_token', data.token);
+    localStorage.setItem('autolog_user', JSON.stringify(data.user));
+    showApp();
+    await loadAllData();
+  } catch (err) {
+    if (err instanceof TypeError) {
+      errEl.textContent = 'Servidor indisponível. Verifique se o backend está rodando.';
+    } else {
+      errEl.textContent = err.message || 'Erro ao fazer login.';
+    }
+    errEl.classList.add('show');
+  }
+}
+
+async function doRegister() {
+  const email = $('authRegEmail').value.trim();
+  const pass = $('authRegPass').value;
+  const pass2 = $('authRegPass2').value;
+  const errEl = $('authRegError');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent = 'Preencha todos os campos.'; errEl.classList.add('show'); return; }
+  if (pass !== pass2) { errEl.textContent = 'As senhas não coincidem.'; errEl.classList.add('show'); return; }
+  if (pass.length < 6) { errEl.textContent = 'A senha deve ter no mínimo 6 caracteres.'; errEl.classList.add('show'); return; }
+  try {
+    const data = await fetch(API_BASE + '/auth/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erro'); return d; });
+    state.token = data.token;
+    state.currentUser = data.user;
+    localStorage.setItem('autolog_token', data.token);
+    localStorage.setItem('autolog_user', JSON.stringify(data.user));
+    showApp();
+    await loadAllData();
+    showToast('Conta criada com sucesso!');
+  } catch (err) {
+    if (err instanceof TypeError) {
+      errEl.textContent = 'Servidor indisponível. Verifique se o backend está rodando.';
+    } else {
+      errEl.textContent = err.message || 'Erro ao criar conta.';
+    }
+    errEl.classList.add('show');
+  }
+}
+
+function logout() {
+  state.token = null;
+  state.currentUser = null;
+  state.vehicles = [];
+  state.records = [];
+  state.activeId = null;
+  loadedRecordVehicles.clear();
+  localStorage.removeItem('autolog_token');
+  localStorage.removeItem('autolog_user');
+  $('appContainer').style.display = 'none';
+  $('authScreen').classList.add('show');
+  // Reset form fields
+  ['authEmail','authPass','authRegEmail','authRegPass','authRegPass2'].forEach(id => { if ($(id)) $(id).value = ''; });
+  $('authLoginError').classList.remove('show');
+  $('authRegError').classList.remove('show');
+  toggleAuthMode('login');
+}
+
+function showApp() {
+  $('authScreen').classList.remove('show');
+  $('appContainer').style.display = '';
+}
+
+// ── Data loading ──
+async function loadAllData() {
+  try {
+    const vehicles = await apiFetch('/vehicles');
+    state.vehicles = vehicles.map(vehicleFromApi);
+    // Restore activeId from localStorage if still valid
+    const savedActiveId = localStorage.getItem('autolog_activeId');
+    if (savedActiveId && state.vehicles.some(v => v.id === savedActiveId)) {
+      state.activeId = savedActiveId;
+    } else {
+      state.activeId = state.vehicles[0]?.id || null;
+    }
+    // Clear records cache and reload for active vehicle
+    state.records = [];
+    loadedRecordVehicles.clear();
+    if (state.activeId) await loadRecordsForVehicle(state.activeId);
+    renderVehicleList();
+    updateMechPanel();
+    updateBadge();
+  } catch (err) {
+    console.error('Erro ao carregar dados:', err);
+  }
+}
+
+async function loadRecordsForVehicle(vehicleId) {
+  if (!vehicleId || loadedRecordVehicles.has(vehicleId)) return;
+  try {
+    const records = await apiFetch('/records?vehicleId=' + vehicleId);
+    // Remove any existing records for this vehicle (in case of reload)
+    state.records = state.records.filter(r => r.vehicleId !== vehicleId);
+    state.records.push(...records.map(recordFromApi));
+    loadedRecordVehicles.add(vehicleId);
+  } catch (err) {
+    console.error('Erro ao carregar registros:', err);
+  }
+}
+
+// ── Local persistence (only activeId, shops, accessLog) ──
+function loadLocal() {
   try {
     const parsed = JSON.parse(localStorage.getItem('autolog') || 'null');
-    if (parsed) state = Object.assign({ vehicles: [], records: [], activeId: null, shops: [], accessLog: [] }, parsed);
-  } catch(e) {}
-  // view é estado de sessão, nunca persiste
+    if (parsed) {
+      if (Array.isArray(parsed.shops)) state.shops = parsed.shops;
+      if (Array.isArray(parsed.accessLog)) state.accessLog = parsed.accessLog;
+    }
+  } catch {}
   state.view = 'owner';
-  // retrocompatibilidade com dados salvos antes desta feature
   if (!Array.isArray(state.shops))     state.shops     = [];
   if (!Array.isArray(state.accessLog)) state.accessLog = [];
 }
 function save() {
-  // não persistir state.view no localStorage (é estado de sessão)
-  const { view, ...persisted } = state;
-  localStorage.setItem('autolog', JSON.stringify(persisted));
+  // Persist only local-only data (shops, accessLog, activeId)
+  localStorage.setItem('autolog', JSON.stringify({
+    shops: state.shops,
+    accessLog: state.accessLog
+  }));
+  if (state.activeId) localStorage.setItem('autolog_activeId', state.activeId);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1732,7 +2013,7 @@ function onEspecChange() {
 // ═══════════════════════════════════════════════════════════════
 //  FUNÇÕES DO PROPRIETÁRIO
 // ═══════════════════════════════════════════════════════════════
-function saveVehicle() {
+async function saveVehicle() {
   const marca=$('selMarca').value, modelo=$('selModelo').value,
         espec=$('selEspec').value, ano=$('selAno').value,
         ownerName=$('ownerName').value.trim();
@@ -1749,17 +2030,23 @@ function saveVehicle() {
     currentMileage: parseInt($('curMileage').value.replace(/\./g,'')) || null,
     addedAt: new Date().toISOString()
   };
-  state.vehicles.push(veh);
-  state.activeId = veh.id;
-  save();
-  renderVehicleList();
-  updateMechPanel();
-  updateBadge();
-  showToast('✅ Veículo salvo!');
-  clearOwnerForm();
-  // Cadastro novo: redireciona automaticamente para a view do Mecânico
-  // (edições usam selectVehicle/editVehicle e não passam por aqui)
-  setTimeout(() => switchView('mechanic'), 300);
+  try {
+    const created = await apiFetch('/vehicles', {
+      method: 'POST', body: JSON.stringify(vehicleToApi(veh))
+    });
+    const mapped = vehicleFromApi(created);
+    state.vehicles.push(mapped);
+    state.activeId = mapped.id;
+    save();
+    renderVehicleList();
+    updateMechPanel();
+    updateBadge();
+    showToast('✅ Veículo salvo!');
+    clearOwnerForm();
+    setTimeout(() => switchView('mechanic'), 300);
+  } catch (err) {
+    showToast('Erro ao salvar veículo: ' + (err.message || 'Tente novamente'));
+  }
 }
 
 function clearOwnerForm() {
@@ -1770,9 +2057,11 @@ function clearOwnerForm() {
   ['ownerName','ownerPhone','ownerEmail','vehiclePlaca','vehicleVin','curMileage','vehColor'].forEach(id => $(id).value='');
 }
 
-function selectVehicle(id) {
+async function selectVehicle(id) {
   state.activeId = id;
   save();
+  // Load records for this vehicle if not already loaded
+  await loadRecordsForVehicle(id);
   renderVehicleList();
   updateMechPanel();
   updateBadge();
@@ -1783,10 +2072,10 @@ function selectVehicle(id) {
   $('selModelo').value = v.model; onModeloChange();
   $('selEspec').value = v.trim || ''; onEspecChange();
   $('selAno').value = v.year;
-  $('ownerName').value = v.ownerName;
-  $('ownerPhone').value = v.ownerPhone;
-  $('ownerEmail').value = v.ownerEmail;
-  $('vehicleVin').value = v.vin;
+  $('ownerName').value = v.ownerName || '';
+  $('ownerPhone').value = v.ownerPhone || '';
+  $('ownerEmail').value = v.ownerEmail || '';
+  $('vehicleVin').value = v.vin || '';
   $('vehiclePlaca').value = v.plate || '';
   $('curMileage').value = v.currentMileage ? v.currentMileage.toLocaleString('pt-BR') : '';
   $('vehColor').value = v.color||'';
@@ -1798,12 +2087,19 @@ function deleteVehicle(id) {
   const v = state.vehicles.find(x=>x.id===id);
   if (!v) return;
   $('delMsg').textContent = `Excluir ${v.year} ${v.make} ${v.model} e todos os seus registros de serviço?`;
-  $('delConfirmBtn').onclick = () => {
-    state.vehicles = state.vehicles.filter(x=>x.id!==id);
-    state.records = state.records.filter(x=>x.vehicleId!==id);
-    if (state.activeId===id) state.activeId = state.vehicles[0]?.id || null;
-    save(); renderVehicleList(); updateMechPanel(); updateBadge();
-    closeModal('delModal'); showToast('🗑 Veículo excluído.');
+  $('delConfirmBtn').onclick = async () => {
+    try {
+      await apiFetch('/vehicles/' + id, { method: 'DELETE' });
+      state.vehicles = state.vehicles.filter(x=>x.id!==id);
+      state.records = state.records.filter(x=>x.vehicleId!==id);
+      loadedRecordVehicles.delete(id);
+      if (state.activeId===id) state.activeId = state.vehicles[0]?.id || null;
+      save(); renderVehicleList(); updateMechPanel(); updateBadge();
+      closeModal('delModal'); showToast('🗑 Veículo excluído.');
+    } catch (err) {
+      closeModal('delModal');
+      showToast('Erro ao excluir: ' + (err.message || 'Tente novamente'));
+    }
   };
   openModal('delModal');
 }
@@ -2010,7 +2306,7 @@ function toggleSelfSvcForm() {
   }
 }
 
-function addSelfSvcRecord() {
+async function addSelfSvcRecord() {
   const date = $('selfSvcDate').value;
   const mileageRaw = $('selfSvcMileage').value;
   if (!date) { showToast('⚠️ Informe a data do serviço.'); return; }
@@ -2030,18 +2326,24 @@ function addSelfSvcRecord() {
     warranty: '', addedAt: new Date().toISOString(),
     selfService: true
   };
-  state.records.push(rec);
-  save(); renderStats(); renderHistory();
-  // limpar e recolher formulário
-  ['selfSvcDate','selfSvcMileage','selfSvcOther','selfSvcNotes','selfSvcParts','selfSvcPartsCost','selfSvcNextService']
-    .forEach(id => $(id).value='');
-  document.querySelectorAll('#selfSvcTypeChecks input').forEach(c=>c.checked=false);
-  $('selfSvcForm').style.display = 'none';
-  $('selfSvcToggleBtn').textContent = 'Expandir';
-  showToast('✅ Manutenção registrada!');
+  try {
+    const created = await apiFetch('/records', { method: 'POST', body: JSON.stringify(recordToApi(rec)) });
+    state.records.push(recordFromApi(created));
+    loadedRecordVehicles.add(state.activeId);
+    save(); renderStats(); renderHistory();
+    // limpar e recolher formulário
+    ['selfSvcDate','selfSvcMileage','selfSvcOther','selfSvcNotes','selfSvcParts','selfSvcPartsCost','selfSvcNextService']
+      .forEach(id => $(id).value='');
+    document.querySelectorAll('#selfSvcTypeChecks input').forEach(c=>c.checked=false);
+    $('selfSvcForm').style.display = 'none';
+    $('selfSvcToggleBtn').textContent = 'Expandir';
+    showToast('✅ Manutenção registrada!');
+  } catch (err) {
+    showToast('Erro ao salvar manutenção: ' + (err.message || 'Tente novamente'));
+  }
 }
 
-function addSvcRecord() {
+async function addSvcRecord() {
   const types = [...document.querySelectorAll('#svcTypeChecks input:checked')].map(c=>c.value);
   const other = $('svcOther').value.trim();
   if (other) types.push(other);
@@ -2075,10 +2377,16 @@ function addSvcRecord() {
     })(),
     addedAt: new Date().toISOString()
   };
-  state.records.push(rec);
-  save(); renderStats(); renderHistory(); renderShopPicker();
-  clearSvcForm();
-  showToast('✅ Registro de serviço salvo!');
+  try {
+    const created = await apiFetch('/records', { method: 'POST', body: JSON.stringify(recordToApi(rec)) });
+    state.records.push(recordFromApi(created));
+    loadedRecordVehicles.add(state.activeId);
+    save(); renderStats(); renderHistory(); renderShopPicker();
+    clearSvcForm();
+    showToast('✅ Registro de serviço salvo!');
+  } catch (err) {
+    showToast('Erro ao salvar registro: ' + (err.message || 'Tente novamente'));
+  }
 }
 
 function clearSvcForm() {
@@ -2374,7 +2682,7 @@ function toggleTheme() {
 //  INIT
 // ═══════════════════════════════════════════════════════════════
 (function init() {
-  load();
+  loadLocal();
 
   // Preencher dropdown de marcas
   const marcaSel = $('selMarca');
@@ -2397,16 +2705,29 @@ function toggleTheme() {
   // Popular dropdown de km do próximo serviço (1.500 → 300.000 km)
   populateNextSvcKm();
 
-  // Render saved data
-  renderVehicleList();
-  updateMechPanel();
-  updateBadge();
-
   // Inicializa a view (SPA) — sempre começa em 'owner'
-  switchView(state.view || 'owner');
+  switchView('owner');
 
   // Renderiza card de oficinas credenciadas
   renderShopsCard();
+
+  // ── Auth bootstrap ──
+  // Se há token salvo no localStorage, restaura e carrega dados
+  const savedToken = localStorage.getItem('autolog_token');
+  const savedUser  = localStorage.getItem('autolog_user');
+  if (savedToken && savedUser) {
+    try {
+      state.token = savedToken;
+      state.currentUser = JSON.parse(savedUser);
+      showApp();
+      loadAllData();
+    } catch {
+      logout();
+    }
+  } else {
+    // Sem token → mostra tela de auth
+    $('authScreen').classList.add('show');
+  }
 })();
 
 // --- AUDITORIA DB (descartável) ---
