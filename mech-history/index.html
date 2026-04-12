@@ -54,6 +54,17 @@ header{background:#0f172a;color:#fff;position:sticky;top:0;z-index:100;box-shado
 .badge-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;padding:.18rem .55rem;border-radius:4px}
 .owner-col .badge-label{background:var(--owner-lt);color:var(--owner)}
 .mech-col  .badge-label{background:var(--mech-lt);color:var(--mech)}
+.shop-col .sec-icon{background:#ede9fe}
+.shop-col .badge-label{background:#ede9fe;color:#7c3aed}
+.shop-col .hidden{display:none}
+.shop-card-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;justify-content:space-between}
+.shop-record-card{padding:.9rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);margin-bottom:.6rem}
+.shop-record-card:last-child{margin-bottom:0}
+.shop-record-top{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin-bottom:.3rem}
+.shop-record-date{font-size:.84rem;font-weight:600}
+.shop-record-cost{font-weight:700;font-size:.92rem;color:#7c3aed;white-space:nowrap}
+.shop-record-veh{font-size:.88rem;color:var(--txt);font-weight:600;margin-bottom:.2rem}
+.shop-record-types{font-size:.78rem;color:var(--muted)}
 
 /* ── Mech Access Card ── */
 .mech-access-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
@@ -662,6 +673,57 @@ textarea{resize:vertical;min-height:72px}
       </div>
       <div class="slist" id="svcList">
         <div class="empty"><div class="empty-ico">📝</div>Nenhum registro de serviço ainda</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ SHOP DASHBOARD SECTION ══════════════ -->
+  <section class="shop-col" id="shop-col">
+    <div class="sec-hdr">
+      <div class="sec-icon">🏢</div>
+      <div style="flex:1;min-width:0">
+        <div class="badge-label">Painel da Oficina</div>
+        <h2 id="shopName">Minha Oficina</h2>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="logoutShop()">Sair</button>
+    </div>
+
+    <!-- Meu Perfil (esqueleto) -->
+    <div class="card">
+      <div class="shop-card-row">
+        <div class="card-title" style="margin:0">👤 Meu Perfil</div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleShopProfile()" id="shopProfileToggleBtn">Expandir</button>
+      </div>
+      <div id="shopProfileSection" class="hidden" style="margin-top:.8rem">
+        <p style="font-size:.85rem;color:var(--muted)">Edição de perfil em breve.</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><div class="stat-val" id="shopStatRec">0</div><div class="stat-lbl">Registros</div></div>
+        <div class="stat"><div class="stat-val" id="shopStatTot">R$ 0,00</div><div class="stat-lbl">Total Faturado</div></div>
+        <div class="stat"><div class="stat-val" id="shopStatLast">—</div><div class="stat-lbl">Último Serviço</div></div>
+      </div>
+    </div>
+
+    <!-- Novo Serviço (esqueleto) -->
+    <div class="card">
+      <div class="shop-card-row">
+        <div class="card-title" style="margin:0">➕ Novo Serviço</div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="showToast('Formulário de novo serviço em breve')">Novo Serviço</button>
+      </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="card">
+      <div class="card-title">📋 Histórico de Serviços</div>
+      <div class="fg" style="margin-bottom:.8rem">
+        <input type="text" id="shopHistorySearch" placeholder="Buscar por veículo, tipo de serviço..." autocomplete="off" oninput="onShopHistorySearch()">
+      </div>
+      <div id="shop-history-list">
+        <div class="empty"><div class="empty-ico">📝</div>Nenhum serviço registrado ainda</div>
       </div>
     </div>
   </section>
@@ -1861,8 +1923,8 @@ async function doLogin() {
     if (data.user && data.user.role) localStorage.setItem('autolog_role', data.user.role);
     // Roteia conforme o role do usuário
     if (data.user && data.user.role === 'shop') {
-      showToast('Dashboard da oficina em breve');
-      try { switchView('shop-dashboard'); } catch (e) { console.log('switchView shop-dashboard ainda não implementado'); }
+      showApp();
+      switchView('shop-dashboard');
     } else {
       showApp();
       await loadAllData();
@@ -1964,12 +2026,131 @@ async function doRegisterShop() {
     localStorage.setItem('autolog_user', JSON.stringify(user));
     localStorage.setItem('autolog_role', user.role || 'shop');
     showToast('Oficina cadastrada com sucesso!');
-    try { switchView('shop-dashboard'); } catch (e) { console.log('switchView shop-dashboard ainda não implementado'); }
+    showApp();
+    switchView('shop-dashboard');
   } catch (err) {
     showToast('Erro ao conectar com o servidor');
     errEl.textContent = 'Servidor indisponível. Verifique se o backend está rodando.';
     errEl.classList.add('show');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SHOP DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+let shopRecordsCache = [];
+const BRL = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+async function shopApiGet(path) {
+  const res = await fetch(API_BASE + path, {
+    headers: state.token ? { 'Authorization': 'Bearer ' + state.token } : {}
+  });
+  if (res.status === 401) { logoutShop(); throw new Error('Sessão expirada'); }
+  if (!res.ok) {
+    let msg = 'Erro do servidor';
+    try { const d = await res.json(); msg = d.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+async function loadShopDashboard() {
+  // Reseta UI para estado base (evita NaN)
+  $('shopStatRec').textContent = '0';
+  $('shopStatTot').textContent = BRL(0);
+  $('shopStatLast').textContent = '—';
+  shopRecordsCache = [];
+  try {
+    const me = await shopApiGet('/shops/me');
+    const nameEl = $('shopName');
+    if (nameEl && me && (me.name || me.shopName)) {
+      nameEl.textContent = me.name || me.shopName;
+    }
+    const records = await shopApiGet('/shops/records');
+    shopRecordsCache = Array.isArray(records) ? records : [];
+    // Stats
+    $('shopStatRec').textContent = String(shopRecordsCache.length);
+    const total = shopRecordsCache.reduce((s, r) => s + Number(r.totalCost || 0), 0);
+    $('shopStatTot').textContent = BRL(total);
+    const lastDate = shopRecordsCache
+      .map(r => r.date)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    $('shopStatLast').textContent = lastDate
+      ? new Date(lastDate + 'T00:00:00').toLocaleDateString('pt-BR')
+      : '—';
+    // Aplica filtro atual (se houver)
+    const filtro = ($('shopHistorySearch')?.value || '').trim();
+    renderShopHistory(shopRecordsCache, filtro);
+  } catch (err) {
+    if (err.message !== 'Sessão expirada') {
+      showToast(err.message || 'Erro ao carregar painel da oficina');
+    }
+  }
+}
+
+function renderShopHistory(records, filtro = '') {
+  const list = $('shop-history-list');
+  if (!list) return;
+  const q = (filtro || '').toLowerCase().trim();
+  const items = !q ? records : records.filter(r => {
+    const v = r.vehicle || {};
+    const hay = [
+      v.make, v.model, v.year,
+      ...(Array.isArray(r.serviceTypes) ? r.serviceTypes : []),
+      r.notes
+    ].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  if (!items.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-ico">📝</div>${records.length ? 'Nenhum resultado para a busca' : 'Nenhum serviço registrado ainda'}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(r => {
+    const v = r.vehicle || {};
+    const dateStr = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    const vehLabel = [v.make, v.model, v.year].filter(Boolean).join(' ') || 'Veículo não informado';
+    const types = Array.isArray(r.serviceTypes) && r.serviceTypes.length
+      ? r.serviceTypes.join(', ')
+      : '—';
+    return `
+      <div class="shop-record-card">
+        <div class="shop-record-top">
+          <span class="shop-record-date">${escHtml(dateStr)}</span>
+          <span class="shop-record-cost">${escHtml(BRL(r.totalCost))}</span>
+        </div>
+        <div class="shop-record-veh">${escHtml(vehLabel)}</div>
+        <div class="shop-record-types">${escHtml(types)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function onShopHistorySearch() {
+  const val = $('shopHistorySearch')?.value || '';
+  renderShopHistory(shopRecordsCache, val);
+}
+
+function toggleShopProfile() {
+  const sec = $('shopProfileSection');
+  const btn = $('shopProfileToggleBtn');
+  if (!sec) return;
+  const willShow = sec.classList.contains('hidden');
+  sec.classList.toggle('hidden', !willShow);
+  if (btn) btn.textContent = willShow ? 'Recolher' : 'Expandir';
+}
+
+function logoutShop() {
+  state.token = null;
+  state.currentUser = null;
+  localStorage.removeItem('autolog_token');
+  localStorage.removeItem('autolog_user');
+  localStorage.removeItem('autolog_role');
+  shopRecordsCache = [];
+  const search = $('shopHistorySearch'); if (search) search.value = '';
+  switchView('login');
+  try { toggleAuthRole('shop'); toggleAuthMode('login'); } catch {}
 }
 
 function logout() {
@@ -2063,12 +2244,25 @@ function save() {
 //  NAVEGAÇÃO POR VIEWS (SPA)
 // ═══════════════════════════════════════════════════════════════
 function switchView(v) {
-  if (v !== 'owner' && v !== 'mechanic') v = 'owner';
+  // Nova view: 'login' devolve à tela de autenticação
+  if (v === 'login') {
+    $('appContainer').style.display = 'none';
+    $('authScreen').classList.add('show');
+    return;
+  }
+  if (v !== 'owner' && v !== 'mechanic' && v !== 'shop-dashboard') v = 'owner';
   state.view = v;
   const ownerSec = document.querySelector('.owner-col');
   const mechSec  = document.querySelector('.mech-col');
+  const shopSec  = document.querySelector('.shop-col');
   if (ownerSec) ownerSec.classList.toggle('view-active', v === 'owner');
   if (mechSec)  mechSec.classList.toggle('view-active', v === 'mechanic');
+  if (shopSec)  shopSec.classList.toggle('view-active', v === 'shop-dashboard');
+  // Na view de oficina, escondemos a navegação owner/mechanic e o badge de veículo
+  const viewnav = document.querySelector('.viewnav');
+  const badge   = $('activeBadge');
+  if (viewnav) viewnav.style.display = (v === 'shop-dashboard') ? 'none' : '';
+  if (badge)   badge.style.display   = (v === 'shop-dashboard') ? 'none' : '';
   const ownerBtn = $('navOwnerBtn'), mechBtn = $('navMechBtn');
   if (ownerBtn) {
     ownerBtn.classList.toggle('active', v === 'owner');
@@ -2080,6 +2274,11 @@ function switchView(v) {
   }
   // Ao entrar na view mechanic, atualiza visibilidade do card de acesso
   if (v === 'mechanic') updateMechPanel();
+  // Ao entrar no dashboard da oficina, carrega dados via API
+  if (v === 'shop-dashboard') {
+    try { showApp(); } catch {}
+    loadShopDashboard();
+  }
   // rola para o topo ao trocar de view (UX SPA)
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2866,7 +3065,11 @@ function toggleTheme() {
       state.token = savedToken;
       state.currentUser = JSON.parse(savedUser);
       showApp();
-      loadAllData();
+      if (state.currentUser && state.currentUser.role === 'shop') {
+        switchView('shop-dashboard');
+      } else {
+        loadAllData();
+      }
     } catch {
       logout();
     }
