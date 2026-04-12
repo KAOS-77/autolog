@@ -89,7 +89,61 @@ function getDb() {
     CREATE INDEX IF NOT EXISTS idx_records_user ON records(user_id);
   `);
 
+  runMigrations(db);
+
   return db;
+}
+
+/**
+ * Migrações idempotentes — podem rodar em banco vazio ou já existente.
+ * ALTER TABLE ADD COLUMN é envolto em try/catch porque o SQLite não suporta IF NOT EXISTS em colunas.
+ */
+function runMigrations(db) {
+  // 1. users.role (default 'owner' | 'shop')
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'owner'`);
+  } catch (err) {
+    if (!/duplicate column name/i.test(err.message)) throw err;
+  }
+
+  // 2. Tabela de perfis de oficina
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shop_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
+      shop_name TEXT NOT NULL,
+      cnpj TEXT,
+      address TEXT,
+      phone TEXT,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // 3. records.shop_user_id — sem FK para manter retrocompatibilidade
+  try {
+    db.exec(`ALTER TABLE records ADD COLUMN shop_user_id INTEGER`);
+  } catch (err) {
+    if (!/duplicate column name/i.test(err.message)) throw err;
+  }
+
+  // 4. Tabela de convites oficina → proprietário
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shop_invitations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shop_user_id INTEGER NOT NULL REFERENCES users(id),
+      owner_email TEXT NOT NULL,
+      owner_user_id INTEGER REFERENCES users(id),
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected','revoked')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      resolved_at DATETIME,
+      UNIQUE(shop_user_id, owner_user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_shop_invitations_shop ON shop_invitations(shop_user_id);
+    CREATE INDEX IF NOT EXISTS idx_shop_invitations_owner ON shop_invitations(owner_user_id);
+    CREATE INDEX IF NOT EXISTS idx_shop_invitations_email ON shop_invitations(owner_email);
+  `);
 }
 
 module.exports = { getDb };
