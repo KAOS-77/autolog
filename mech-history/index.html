@@ -706,7 +706,7 @@ textarea{resize:vertical;min-height:72px}
       <div class="sec-icon">🏢</div>
       <div style="flex:1;min-width:0">
         <div class="badge-label">Painel da Oficina</div>
-        <h2 id="shopName">Minha Oficina</h2>
+        <h2 id="shopHeaderName">Minha Oficina</h2>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="logoutShop()">Sair</button>
     </div>
@@ -718,7 +718,14 @@ textarea{resize:vertical;min-height:72px}
         <button type="button" class="btn btn-ghost btn-sm" onclick="toggleShopProfile()" id="shopProfileToggleBtn">Expandir</button>
       </div>
       <div id="shopProfileSection" class="hidden" style="margin-top:.8rem">
-        <p style="font-size:.85rem;color:var(--muted)">Edição de perfil em breve.</p>
+        <div class="fg"><label for="spShopName">Nome da Oficina *</label><input id="spShopName" type="text" placeholder="Auto Center Plus"></div>
+        <div class="fg"><label for="spCnpj">CNPJ</label><input id="spCnpj" type="text" placeholder="00.000.000/0000-00" maxlength="18" inputmode="numeric" oninput="maskCnpj(this)"></div>
+        <div class="fg"><label for="spPhone">Telefone</label><input id="spPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
+        <div class="fg"><label for="spAddress">Endereço</label><input id="spAddress" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
+        <div class="fg"><label for="spDescription">Descrição</label><textarea id="spDescription" placeholder="Breve descrição dos serviços prestados..."></textarea></div>
+        <div style="display:flex;gap:.65rem;margin-top:.6rem">
+          <button class="btn btn-success btn-block" onclick="saveShopProfile()">💾 Salvar Perfil</button>
+        </div>
       </div>
     </div>
 
@@ -731,11 +738,64 @@ textarea{resize:vertical;min-height:72px}
       </div>
     </div>
 
-    <!-- Novo Serviço (esqueleto) -->
+    <!-- Novo Serviço -->
     <div class="card">
       <div class="shop-card-row">
         <div class="card-title" style="margin:0">➕ Novo Serviço</div>
-        <button type="button" class="btn btn-primary btn-sm" onclick="showToast('Formulário de novo serviço em breve')">Novo Serviço</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleShopSvcForm()" id="shopSvcToggleBtn">Expandir</button>
+      </div>
+      <div id="shopSvcForm" class="hidden" style="margin-top:.8rem">
+        <!-- Seleção de veículo -->
+        <div class="fg" style="position:relative">
+          <label for="shopSvcVehSearch">Veículo do Cliente *</label>
+          <div id="shopSvcVehSelected" class="hidden" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;border:1px solid var(--border);border-radius:8px;background:#f5f3ff;flex-wrap:wrap">
+            <span id="shopSvcVehTag" style="font-weight:600;flex:1;min-width:0"></span>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="clearShopSvcVehicle()">✕ Trocar</button>
+          </div>
+          <input id="shopSvcVehSearch" type="text" placeholder="Digite marca, modelo ou nome do proprietário (mín. 2 letras)" autocomplete="off" oninput="onShopSvcVehSearchInput()">
+          <div id="shopSvcVehDropdown" class="hidden" style="position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:.25rem;max-height:260px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.08)"></div>
+          <small id="shopSvcVehHint" class="hint hidden" style="color:#b45309"></small>
+        </div>
+
+        <div class="row2">
+          <div class="fg"><label>Data do Serviço *</label><input id="shopSvcDate" type="date"></div>
+          <div class="fg"><label>Quilometragem</label><input id="shopSvcMileage" type="text" inputmode="numeric" placeholder="45.000" oninput="fmtKm(this)"></div>
+        </div>
+
+        <div class="fg">
+          <label>Serviços Realizados</label>
+          <div class="stypes" id="shopSvcTypeChecks"></div>
+          <input id="shopSvcOther" type="text" placeholder="Outro / descrição personalizada..." style="margin-top:.4rem">
+        </div>
+
+        <div class="fg"><label>Notas / Observações</label><textarea id="shopSvcNotes" placeholder="Descrição detalhada do trabalho..."></textarea></div>
+        <div class="fg"><label>Peças Utilizadas</label><textarea id="shopSvcPartsUsed" placeholder="Liste as peças trocadas ou instaladas..." style="min-height:58px"></textarea></div>
+
+        <div class="divider">Detalhamento de Custos</div>
+        <div class="row2">
+          <div class="fg"><label>Custo das Peças</label><div class="pfx"><input id="shopSvcPartsCost" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcShopSvcTotal()"></div></div>
+          <div class="fg"><label>Custo de Mão de Obra</label><div class="pfx"><input id="shopSvcLaborCost" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcShopSvcTotal()"></div></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label>Impostos / Outros</label><div class="pfx"><input id="shopSvcTaxAmt" type="number" placeholder="0.00" min="0" step="0.01" oninput="calcShopSvcTotal()"></div></div>
+          <div class="fg"><label>Custo Total</label><div class="pfx"><input id="shopSvcTotalCost" type="number" placeholder="0.00" min="0" step="0.01" readonly style="font-weight:700;background:#f0fdf4;border-color:#a7f3d0"></div></div>
+        </div>
+
+        <div class="divider">Oficina / Técnico</div>
+        <div class="row2">
+          <div class="fg"><label>Nome da Oficina</label><input id="shopSvcShopName" type="text" placeholder="Auto Center Plus"></div>
+          <div class="fg"><label>Telefone da Oficina</label><input id="shopSvcShopPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
+        </div>
+        <div class="fg"><label>Endereço da Oficina</label><input id="shopSvcShopAddr" type="text" placeholder="Rua Principal, 123, Cidade, Estado"></div>
+        <div class="fg"><label>Nome do Técnico</label><input id="shopSvcTechName" type="text" placeholder="Carlos Silva"></div>
+        <div class="row2">
+          <div class="fg"><label>Próximo Serviço</label><input id="shopSvcNextService" type="text" placeholder="Ex: 50.000 km / 6 meses"></div>
+          <div class="fg"><label>Garantia</label><input id="shopSvcWarranty" type="text" placeholder="Ex: 3 meses"></div>
+        </div>
+
+        <div style="display:flex;gap:.65rem;margin-top:.9rem">
+          <button class="btn btn-success btn-block" onclick="submitShopSvcRecord()">✅ Lançar Serviço</button>
+        </div>
       </div>
     </div>
 
@@ -1814,7 +1874,7 @@ const API_BASE = window.AUTOLOG_API_BASE || 'http://localhost:3000/api';
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════════════════════
 const CURR_YEAR = new Date().getFullYear();
-let state = { vehicles: [], records: [], activeId: null, view: 'owner', shops: [], accessLog: [], token: null, currentUser: null };
+let state = { vehicles: [], records: [], activeId: null, view: 'owner', shops: [], accessLog: [], token: null, currentUser: null, shopProfile: null };
 let mechUnlocked = false;
 // Track which vehicles have had their records loaded from API
 const loadedRecordVehicles = new Set();
@@ -2123,10 +2183,10 @@ async function loadShopDashboard() {
   shopRecordsCache = [];
   try {
     const me = await shopApiGet('/shops/me');
-    const nameEl = $('shopName');
-    if (nameEl && me && (me.name || me.shopName)) {
-      nameEl.textContent = me.name || me.shopName;
-    }
+    state.shopProfile = me || {};
+    const nameEl = $('shopHeaderName');
+    const displayName = me && (me.shop_name || me.name || me.shopName);
+    if (nameEl && displayName) nameEl.textContent = displayName;
     const records = await shopApiGet('/shops/records');
     shopRecordsCache = Array.isArray(records) ? records : [];
     // Stats
@@ -2374,6 +2434,232 @@ function toggleShopProfile() {
   const willShow = sec.classList.contains('hidden');
   sec.classList.toggle('hidden', !willShow);
   if (btn) btn.textContent = willShow ? 'Recolher' : 'Expandir';
+  if (willShow) loadShopProfileForm();
+}
+
+async function loadShopProfileForm() {
+  try {
+    const me = await shopApiGet('/shops/me');
+    state.shopProfile = me || {};
+    $('spShopName').value    = me.shop_name   || '';
+    $('spCnpj').value        = me.cnpj        || '';
+    $('spPhone').value       = me.phone       || '';
+    $('spAddress').value     = me.address     || '';
+    $('spDescription').value = me.description || '';
+    // Aplica máscara visual ao CNPJ (caso venha só números)
+    if (me.cnpj) maskCnpj($('spCnpj'));
+  } catch (err) {
+    if (err.message !== 'Sessão expirada') showToast('Erro ao carregar perfil');
+  }
+}
+
+async function saveShopProfile() {
+  const shop_name = $('spShopName').value.trim();
+  if (!shop_name) { showToast('Informe o nome da oficina'); return; }
+  const payload = {
+    shop_name,
+    cnpj:        $('spCnpj').value.trim(),
+    phone:       $('spPhone').value.trim(),
+    address:     $('spAddress').value.trim(),
+    description: $('spDescription').value.trim()
+  };
+  try {
+    const res = await fetch(API_BASE + '/shops/me', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(state.token ? { 'Authorization': 'Bearer ' + state.token } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.status === 401) { logoutShop(); return; }
+    if (!res.ok) { showToast('Erro ao atualizar perfil'); return; }
+    const updated = await res.json();
+    state.shopProfile = updated || payload;
+    const nameEl = $('shopHeaderName');
+    if (nameEl && (updated.shop_name || shop_name)) {
+      nameEl.textContent = updated.shop_name || shop_name;
+    }
+    showToast('Perfil atualizado');
+  } catch (err) {
+    showToast('Erro ao atualizar perfil');
+  }
+}
+
+// ─── Novo Serviço ──────────────────────────────────────────────
+const SHOP_SVC_TYPES = [
+  'Troca de Óleo','Revisão','Freios','Pneus',
+  'Suspensão','Elétrica','Funilaria/Pintura','Outros'
+];
+let shopSvcSelectedVehicle = null;
+let shopSvcSearchTimer = null;
+
+function toggleShopSvcForm() {
+  const form = $('shopSvcForm');
+  const btn  = $('shopSvcToggleBtn');
+  if (!form) return;
+  const willShow = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !willShow);
+  if (btn) btn.textContent = willShow ? 'Recolher' : 'Expandir';
+  if (willShow) {
+    // Render checkboxes uma vez
+    const box = $('shopSvcTypeChecks');
+    if (box && !box.children.length) {
+      box.innerHTML = SHOP_SVC_TYPES.map((t,i) =>
+        `<label style="display:inline-flex;align-items:center;gap:.35rem;margin-right:.8rem;margin-bottom:.3rem;font-size:.88rem">
+           <input type="checkbox" value="${escHtml(t)}"> ${escHtml(t)}
+         </label>`
+      ).join('');
+    }
+    // Data default hoje
+    if (!$('shopSvcDate').value) $('shopSvcDate').value = new Date().toISOString().split('T')[0];
+    // Pré-preenche nome da oficina
+    const sn = $('shopSvcShopName');
+    if (sn && !sn.value && state.shopProfile && state.shopProfile.shop_name) {
+      sn.value = state.shopProfile.shop_name;
+    }
+  }
+}
+
+function onShopSvcVehSearchInput() {
+  const input = $('shopSvcVehSearch');
+  const term = (input.value || '').trim();
+  clearTimeout(shopSvcSearchTimer);
+  const dd = $('shopSvcVehDropdown');
+  const hint = $('shopSvcVehHint');
+  if (hint) hint.classList.add('hidden');
+  if (term.length < 2) {
+    if (dd) { dd.classList.add('hidden'); dd.innerHTML = ''; }
+    return;
+  }
+  shopSvcSearchTimer = setTimeout(() => doShopSvcVehSearch(term), 400);
+}
+
+async function doShopSvcVehSearch(term) {
+  const dd   = $('shopSvcVehDropdown');
+  const hint = $('shopSvcVehHint');
+  try {
+    const list = await shopApiGet('/shops/vehicles?q=' + encodeURIComponent(term));
+    if (!Array.isArray(list) || list.length === 0) {
+      dd.classList.add('hidden'); dd.innerHTML = '';
+      if (hint) {
+        hint.innerHTML = 'Nenhum veículo disponível. Você precisa de um vínculo aceito com o proprietário. <a href="#shopInvitationsCard" onclick="document.getElementById(\'shopInvitationsCard\').scrollIntoView({behavior:\'smooth\'});return false;">Ir para Proprietários Vinculados</a>';
+        hint.classList.remove('hidden');
+      }
+      return;
+    }
+    dd.innerHTML = list.map(v => {
+      const label = [v.make, v.model, v.year, v.trim].filter(Boolean).join(' ') + ' — ' + (v.ownerName || 'Proprietário');
+      return `<div class="shopSvcVehItem" data-id="${escHtml(String(v.id))}" data-label="${escHtml(label)}" style="padding:.55rem .7rem;cursor:pointer;border-bottom:1px solid var(--border)">${escHtml(label)}</div>`;
+    }).join('');
+    dd.classList.remove('hidden');
+    // Attach clicks
+    dd.querySelectorAll('.shopSvcVehItem').forEach(el => {
+      el.addEventListener('click', () => {
+        selectShopSvcVehicle(el.getAttribute('data-id'), el.getAttribute('data-label'));
+      });
+      el.addEventListener('mouseenter', () => { el.style.background = '#f5f3ff'; });
+      el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    });
+  } catch (err) {
+    if (err.message !== 'Sessão expirada') showToast('Erro ao buscar veículos');
+  }
+}
+
+function selectShopSvcVehicle(id, label) {
+  shopSvcSelectedVehicle = { id, label };
+  $('shopSvcVehTag').textContent = label;
+  $('shopSvcVehSelected').classList.remove('hidden');
+  $('shopSvcVehSearch').classList.add('hidden');
+  $('shopSvcVehSearch').value = '';
+  const dd = $('shopSvcVehDropdown');
+  dd.classList.add('hidden'); dd.innerHTML = '';
+  const hint = $('shopSvcVehHint');
+  if (hint) hint.classList.add('hidden');
+}
+
+function clearShopSvcVehicle() {
+  shopSvcSelectedVehicle = null;
+  $('shopSvcVehTag').textContent = '';
+  $('shopSvcVehSelected').classList.add('hidden');
+  $('shopSvcVehSearch').classList.remove('hidden');
+  $('shopSvcVehSearch').focus();
+}
+
+function calcShopSvcTotal() {
+  const p = parseFloat($('shopSvcPartsCost').value) || 0;
+  const l = parseFloat($('shopSvcLaborCost').value) || 0;
+  const t = parseFloat($('shopSvcTaxAmt').value)    || 0;
+  $('shopSvcTotalCost').value = (p + l + t).toFixed(2);
+}
+
+async function submitShopSvcRecord() {
+  if (!shopSvcSelectedVehicle || !shopSvcSelectedVehicle.id) {
+    showToast('Selecione o veículo do cliente'); return;
+  }
+  const date = $('shopSvcDate').value;
+  if (!date) { showToast('Informe a data do serviço'); return; }
+
+  const types = [...document.querySelectorAll('#shopSvcTypeChecks input:checked')].map(c => c.value);
+  const other = $('shopSvcOther').value.trim();
+  if (other) types.push(other);
+
+  const mileageRaw = $('shopSvcMileage').value;
+  const payload = {
+    vehicleId:   shopSvcSelectedVehicle.id,
+    date,
+    mileage:     parseInt(String(mileageRaw).replace(/\./g, '')) || null,
+    serviceTypes: types,
+    notes:       $('shopSvcNotes').value.trim(),
+    partsUsed:   $('shopSvcPartsUsed').value.trim(),
+    partsCost:   parseFloat($('shopSvcPartsCost').value) || 0,
+    laborCost:   parseFloat($('shopSvcLaborCost').value) || 0,
+    taxAmount:   parseFloat($('shopSvcTaxAmt').value)    || 0,
+    totalCost:   parseFloat($('shopSvcTotalCost').value) || 0,
+    shopName:    $('shopSvcShopName').value.trim(),
+    shopPhone:   $('shopSvcShopPhone').value.trim(),
+    shopAddr:    $('shopSvcShopAddr').value.trim(),
+    techName:    $('shopSvcTechName').value.trim(),
+    nextService: $('shopSvcNextService').value.trim(),
+    warranty:    $('shopSvcWarranty').value.trim()
+  };
+
+  try {
+    const res = await fetch(API_BASE + '/shops/records', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(state.token ? { 'Authorization': 'Bearer ' + state.token } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.status === 401) { logoutShop(); return; }
+    if (res.status === 403) {
+      showToast('Acesso revogado. Solicite novo vínculo ao proprietário.');
+      return;
+    }
+    if (res.status !== 201) {
+      showToast('Erro ao lançar serviço'); return;
+    }
+    clearShopSvcForm();
+    await loadShopDashboard();
+    showToast('Serviço lançado com sucesso');
+  } catch (err) {
+    showToast('Erro ao lançar serviço');
+  }
+}
+
+function clearShopSvcForm() {
+  clearShopSvcVehicle();
+  ['shopSvcDate','shopSvcMileage','shopSvcOther','shopSvcNotes','shopSvcPartsUsed',
+   'shopSvcPartsCost','shopSvcLaborCost','shopSvcTaxAmt','shopSvcTotalCost',
+   'shopSvcShopName','shopSvcShopPhone','shopSvcShopAddr','shopSvcTechName',
+   'shopSvcNextService','shopSvcWarranty'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  document.querySelectorAll('#shopSvcTypeChecks input').forEach(c => c.checked = false);
+  // Recolhe
+  const form = $('shopSvcForm'), btn = $('shopSvcToggleBtn');
+  if (form) form.classList.add('hidden');
+  if (btn) btn.textContent = 'Expandir';
 }
 
 function logoutShop() {
