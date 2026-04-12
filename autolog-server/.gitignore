@@ -1,4 +1,6 @@
 node_modules/
 autolog.db
+*.db-shm
+*.db-wal
 uploads/
 .env
