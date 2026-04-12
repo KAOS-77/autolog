@@ -29,6 +29,7 @@ const vehicleRoutes = require('./routes/vehicles');
 const recordRoutes = require('./routes/records');
 const photoRoutes = require('./routes/photos');
 const shopRoutes = require('./routes/shops');
+const invitationRoutes = require('./routes/invitations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,6 +70,7 @@ app.use('/api/vehicles', authMiddleware, vehicleRoutes);
 app.use('/api/records', authMiddleware, recordRoutes);
 app.use('/api/photos', authMiddleware, photoRoutes);
 app.use('/api/shops', authMiddleware, shopRoutes);
+app.use('/api/invitations', authMiddleware, invitationRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
