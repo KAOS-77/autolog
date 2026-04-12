@@ -1,7 +1,31 @@
+/*
+ * MIGRAÇÃO PARA POSTGRESQL (quando necessário):
+ *
+ * 1. Instale as dependências:
+ *      npm install pg
+ *      npm uninstall better-sqlite3
+ *
+ * 2. Substitua a inicialização do banco:
+ *      const { Pool } = require('pg');
+ *      const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+ *      async function getDb() { return pool; }
+ *
+ * 3. Queries que precisam de atenção:
+ *    - JSON_EACH (SQLite) → unnest(ARRAY[...]) ou jsonb_array_elements_text() (PostgreSQL)
+ *    - service_types é armazenado como TEXT (JSON array) — no PG use coluna JSONB
+ *    - db.prepare(...).run() → pool.query(text, params) — API assíncrona
+ *    - better-sqlite3 é síncrono; pg é assíncrono (use async/await em todas as rotas)
+ *
+ * 4. Os IDs TEXT (uuid-like gerados pelo frontend) continuam compatíveis sem alteração.
+ *
+ * 5. No Railway: adicione o plugin PostgreSQL e use a variável DATABASE_URL gerada.
+ */
+
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'autolog.db');
+// Em produção no Railway: setar DB_PATH=/app/data/autolog.db (requer Volume configurado)
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'autolog.db');
 
 let db;
 

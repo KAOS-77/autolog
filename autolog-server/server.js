@@ -2,10 +2,18 @@
  * AUTOLOG SERVER — COMO RODAR
  * 1. cp .env.example .env  (e edite JWT_SECRET)
  * 2. npm install
- * 3. node --watch server.js  (desenvolvimento, com auto-reload)
- *    node server.js           (produção)
+ * 3. npm run dev            (desenvolvimento, com auto-reload)
+ *    npm start              (produção)
  * 4. Servidor sobe em http://localhost:3000
  * 5. Abra mech-history/index.html no browser
+ *
+ * DEPLOY NO RAILWAY:
+ * 1. railway login && railway init
+ * 2. railway up (na pasta autolog-server/)
+ * 3. Adicionar variáveis de ambiente: JWT_SECRET, NODE_ENV=production
+ * 4. Para persistência de dados: adicionar Volume em /app/data e
+ *    setar DB_PATH=/app/data/autolog.db
+ *    (sem Volume, o banco é recriado a cada novo deploy — dados perdidos)
  */
 
 require('dotenv').config();
