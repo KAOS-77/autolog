@@ -318,25 +318,6 @@ textarea{resize:vertical;min-height:72px}
       </ul>
     </div>
 
-    <!-- Credentialed Shops -->
-    <div class="card" id="shopsCard">
-      <div class="card-title">🏪 Oficinas Credenciadas</div>
-      <div style="display:grid;grid-template-columns:1fr auto;gap:.65rem;align-items:flex-end">
-        <div class="fg" style="margin-bottom:0">
-          <label for="newShopName">Nome da oficina</label>
-          <input type="text" id="newShopName" placeholder="Ex.: Mecânica do João" maxlength="60" autocomplete="off">
-        </div>
-        <button type="button" class="btn btn-primary" onclick="addShop()">+ Adicionar</button>
-      </div>
-      <div id="shopList" style="margin-top:.9rem"></div>
-      <hr style="margin:1rem 0;border:none;border-top:1px solid var(--border)">
-      <div class="card-title" style="margin-bottom:.6rem">
-        🕓 Acessos Recentes
-        <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAccessLog()">Limpar histórico</button>
-      </div>
-      <div id="accessLogList"></div>
-    </div>
-
     <!-- Self-Service Maintenance -->
     <div class="card" id="selfSvcCard" style="display:none">
       <div class="card-title">
@@ -2198,6 +2179,7 @@ function formatCode(code) { return code.slice(0,3) + ' ' + code.slice(3); }
 function addShop(inputId) {
   inputId = inputId || 'newShopName';
   const nameEl = $(inputId);
+  if (!nameEl) return;
   const name = nameEl.value.trim();
   if (!name) { showToast('⚠️ Informe o nome da oficina.'); return; }
   const shop = { id: uid(), name, code: genCode() };
