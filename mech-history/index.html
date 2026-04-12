@@ -204,6 +204,11 @@ textarea{resize:vertical;min-height:72px}
 .auth-switch{text-align:center;margin-top:1rem;font-size:.82rem;color:var(--muted)}
 .auth-switch a{color:var(--owner);cursor:pointer;font-weight:600;text-decoration:none}
 .auth-switch a:hover{text-decoration:underline}
+.auth-roles{display:flex;gap:.4rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.25rem;margin-bottom:1.2rem}
+.auth-role-btn{flex:1;border:none;background:transparent;color:var(--muted);font-size:.85rem;font-weight:600;padding:.55rem .6rem;border-radius:8px;cursor:pointer;transition:all .18s ease}
+.auth-role-btn:hover{color:var(--txt)}
+.auth-role-btn.active{background:var(--surface);color:var(--owner);box-shadow:var(--sh1)}
+.auth-role-btn.active[data-role="shop"]{color:#7c3aed}
 #logoutBtn{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);color:#cbd5e1;padding:.5rem .95rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
 #logoutBtn:hover{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5}
 
@@ -247,7 +252,13 @@ textarea{resize:vertical;min-height:72px}
       <p>Gerenciador de Histórico de Serviços</p>
     </div>
 
-    <!-- Login Form -->
+    <!-- Seletor de tipo de conta -->
+    <div class="auth-roles" role="tablist" aria-label="Tipo de conta">
+      <button type="button" class="auth-role-btn active" data-role="owner" role="tab" aria-selected="true" onclick="toggleAuthRole('owner')">🚗 Proprietário</button>
+      <button type="button" class="auth-role-btn" data-role="shop" role="tab" aria-selected="false" onclick="toggleAuthRole('shop')">🔧 Oficina</button>
+    </div>
+
+    <!-- Login Form (compartilhado owner + shop) -->
     <div id="authLoginForm">
       <div class="fg"><label for="authEmail">Email</label><input id="authEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
       <div class="fg"><label for="authPass">Senha</label><input id="authPass" type="password" placeholder="Sua senha" autocomplete="current-password"></div>
@@ -256,13 +267,27 @@ textarea{resize:vertical;min-height:72px}
       <div class="auth-switch">Não tem conta? <a onclick="toggleAuthMode('register')">Criar conta</a></div>
     </div>
 
-    <!-- Register Form -->
+    <!-- Register Form Proprietário -->
     <div id="authRegisterForm" style="display:none">
       <div class="fg"><label for="authRegEmail">Email</label><input id="authRegEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
       <div class="fg"><label for="authRegPass">Senha</label><input id="authRegPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
       <div class="fg"><label for="authRegPass2">Confirmar Senha</label><input id="authRegPass2" type="password" placeholder="Repita a senha" autocomplete="new-password"></div>
       <button class="btn btn-primary btn-block" onclick="doRegister()" style="margin-top:.6rem">Criar conta</button>
       <div id="authRegError" class="auth-error"></div>
+      <div class="auth-switch">Já tem conta? <a onclick="toggleAuthMode('login')">Entrar</a></div>
+    </div>
+
+    <!-- Register Form Oficina -->
+    <div id="authRegisterShopForm" style="display:none">
+      <div class="fg"><label for="shopRegEmail">Email <span style="color:var(--danger)">*</span></label><input id="shopRegEmail" type="email" placeholder="oficina@email.com" autocomplete="email"></div>
+      <div class="fg"><label for="shopRegPass">Senha <span style="color:var(--danger)">*</span></label><input id="shopRegPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <div class="fg"><label for="shopRegName">Nome da oficina <span style="color:var(--danger)">*</span></label><input id="shopRegName" type="text" placeholder="Ex: Auto Mecânica do João" maxlength="120"></div>
+      <div class="fg"><label for="shopRegCnpj">CNPJ</label><input id="shopRegCnpj" type="text" placeholder="00.000.000/0000-00" maxlength="18" inputmode="numeric" oninput="maskCnpj(this)"></div>
+      <div class="fg"><label for="shopRegPhone">Telefone</label><input id="shopRegPhone" type="tel" placeholder="(11) 99999-0000" maxlength="20"></div>
+      <div class="fg"><label for="shopRegAddr">Endereço</label><input id="shopRegAddr" type="text" placeholder="Rua, número, bairro, cidade" maxlength="200"></div>
+      <div class="fg"><label for="shopRegDesc">Descrição</label><textarea id="shopRegDesc" rows="3" placeholder="Serviços oferecidos, especialidades..." maxlength="500"></textarea></div>
+      <button class="btn btn-primary btn-block" onclick="doRegisterShop()" style="margin-top:.6rem">Cadastrar oficina</button>
+      <div id="authRegShopError" class="auth-error"></div>
       <div class="auth-switch">Já tem conta? <a onclick="toggleAuthMode('login')">Entrar</a></div>
     </div>
   </div>
@@ -1762,15 +1787,60 @@ async function apiFetch(path, options = {}) {
 }
 
 // ── Auth functions ──
+let authRole = 'owner'; // 'owner' | 'shop'
+let authMode = 'login'; // 'login' | 'register'
+
+function toggleAuthRole(role) {
+  if (role !== 'owner' && role !== 'shop') role = 'owner';
+  authRole = role;
+  // Atualiza botões de aba
+  document.querySelectorAll('.auth-role-btn').forEach(btn => {
+    const active = btn.dataset.role === role;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  // Re-renderiza o modo atual (login/register) considerando o novo role
+  toggleAuthMode(authMode);
+}
+
 function toggleAuthMode(mode) {
-  const loginForm = $('authLoginForm'), regForm = $('authRegisterForm');
-  const loginErr = $('authLoginError'), regErr = $('authRegError');
-  loginErr.classList.remove('show'); regErr.classList.remove('show');
-  if (mode === 'register') {
-    loginForm.style.display = 'none'; regForm.style.display = '';
+  authMode = (mode === 'register') ? 'register' : 'login';
+  const loginForm = $('authLoginForm');
+  const regForm   = $('authRegisterForm');
+  const regShop   = $('authRegisterShopForm');
+  const loginErr  = $('authLoginError');
+  const regErr    = $('authRegError');
+  const regShopErr= $('authRegShopError');
+  loginErr.classList.remove('show');
+  regErr.classList.remove('show');
+  if (regShopErr) regShopErr.classList.remove('show');
+
+  if (authMode === 'register') {
+    loginForm.style.display = 'none';
+    if (authRole === 'shop') {
+      regForm.style.display = 'none';
+      regShop.style.display = '';
+    } else {
+      regForm.style.display = '';
+      regShop.style.display = 'none';
+    }
   } else {
-    loginForm.style.display = ''; regForm.style.display = 'none';
+    // login é compartilhado
+    loginForm.style.display = '';
+    regForm.style.display = 'none';
+    regShop.style.display = 'none';
   }
+}
+
+// Máscara CNPJ: 12345678000195 -> 12.345.678/0001-95
+function maskCnpj(el) {
+  let v = el.value.replace(/\D/g, '').slice(0, 14);
+  let out = v;
+  if (v.length > 12)      out = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2}).*/, '$1.$2.$3/$4-$5');
+  else if (v.length > 8)  out = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{1,4}).*/,        '$1.$2.$3/$4');
+  else if (v.length > 5)  out = v.replace(/^(\d{2})(\d{3})(\d{1,3}).*/,               '$1.$2.$3');
+  else if (v.length > 2)  out = v.replace(/^(\d{2})(\d{1,3}).*/,                      '$1.$2');
+  el.value = out;
 }
 
 async function doLogin() {
@@ -1788,8 +1858,15 @@ async function doLogin() {
     state.currentUser = data.user;
     localStorage.setItem('autolog_token', data.token);
     localStorage.setItem('autolog_user', JSON.stringify(data.user));
-    showApp();
-    await loadAllData();
+    if (data.user && data.user.role) localStorage.setItem('autolog_role', data.user.role);
+    // Roteia conforme o role do usuário
+    if (data.user && data.user.role === 'shop') {
+      showToast('Dashboard da oficina em breve');
+      try { switchView('shop-dashboard'); } catch (e) { console.log('switchView shop-dashboard ainda não implementado'); }
+    } else {
+      showApp();
+      await loadAllData();
+    }
   } catch (err) {
     if (err instanceof TypeError) {
       errEl.textContent = 'Servidor indisponível. Verifique se o backend está rodando.';
@@ -1818,6 +1895,7 @@ async function doRegister() {
     state.currentUser = data.user;
     localStorage.setItem('autolog_token', data.token);
     localStorage.setItem('autolog_user', JSON.stringify(data.user));
+    if (data.user && data.user.role) localStorage.setItem('autolog_role', data.user.role);
     showApp();
     await loadAllData();
     showToast('Conta criada com sucesso!');
@@ -1831,6 +1909,69 @@ async function doRegister() {
   }
 }
 
+async function doRegisterShop() {
+  const email     = $('shopRegEmail').value.trim();
+  const password  = $('shopRegPass').value;
+  const shopName  = $('shopRegName').value.trim();
+  const cnpj      = $('shopRegCnpj').value.trim();
+  const phone     = $('shopRegPhone').value.trim();
+  const address   = $('shopRegAddr').value.trim();
+  const description = $('shopRegDesc').value.trim();
+  const errEl = $('authRegShopError');
+  errEl.classList.remove('show');
+
+  if (!email || !password || !shopName) {
+    showToast('Preencha todos os campos obrigatórios');
+    errEl.textContent = 'Email, senha e nome da oficina são obrigatórios.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  const payload = { email, password, shopName };
+  if (cnpj)        payload.cnpj = cnpj;
+  if (address)     payload.address = address;
+  if (phone)       payload.phone = phone;
+  if (description) payload.description = description;
+
+  try {
+    const res = await fetch(API_BASE + '/auth/register-shop', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let data = {};
+    try { data = await res.json(); } catch { /* sem body */ }
+    if (!res.ok) {
+      if (res.status === 409) {
+        showToast('Email já cadastrado');
+        errEl.textContent = 'Email já cadastrado.';
+      } else {
+        errEl.textContent = data.error || 'Erro ao cadastrar oficina.';
+      }
+      errEl.classList.add('show');
+      return;
+    }
+    // Login automático após cadastro
+    const token = data.token;
+    const user  = data.user || { email, role: 'shop' };
+    state.token = token || null;
+    state.currentUser = user;
+    if (token) localStorage.setItem('autolog_token', token);
+    localStorage.setItem('autolog_user', JSON.stringify(user));
+    localStorage.setItem('autolog_role', user.role || 'shop');
+    showToast('Oficina cadastrada com sucesso!');
+    try { switchView('shop-dashboard'); } catch (e) { console.log('switchView shop-dashboard ainda não implementado'); }
+  } catch (err) {
+    showToast('Erro ao conectar com o servidor');
+    errEl.textContent = 'Servidor indisponível. Verifique se o backend está rodando.';
+    errEl.classList.add('show');
+  }
+}
+
 function logout() {
   state.token = null;
   state.currentUser = null;
@@ -1840,12 +1981,17 @@ function logout() {
   loadedRecordVehicles.clear();
   localStorage.removeItem('autolog_token');
   localStorage.removeItem('autolog_user');
+  localStorage.removeItem('autolog_role');
   $('appContainer').style.display = 'none';
   $('authScreen').classList.add('show');
   // Reset form fields
-  ['authEmail','authPass','authRegEmail','authRegPass','authRegPass2'].forEach(id => { if ($(id)) $(id).value = ''; });
+  ['authEmail','authPass','authRegEmail','authRegPass','authRegPass2',
+   'shopRegEmail','shopRegPass','shopRegName','shopRegCnpj','shopRegPhone','shopRegAddr','shopRegDesc']
+    .forEach(id => { if ($(id)) $(id).value = ''; });
   $('authLoginError').classList.remove('show');
   $('authRegError').classList.remove('show');
+  const shopErr = $('authRegShopError'); if (shopErr) shopErr.classList.remove('show');
+  toggleAuthRole('owner');
   toggleAuthMode('login');
 }
 
