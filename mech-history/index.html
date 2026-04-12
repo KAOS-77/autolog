@@ -408,6 +408,29 @@ textarea{resize:vertical;min-height:72px}
       </ul>
     </div>
 
+    <!-- Oficinas Vinculadas -->
+    <div class="card" id="invitationsCard">
+      <div class="card-title">
+        🤝 Oficinas Vinculadas
+        <span id="invPendingBadge" style="margin-left:auto;background:#fef3c7;color:#b45309;border-radius:4px;padding:.1rem .5rem;font-weight:800;display:none">0</span>
+      </div>
+      <div id="invEmpty" class="empty"><div class="empty-ico">🤝</div>Nenhuma oficina vinculada ainda.</div>
+      <div id="invPendingWrap" style="display:none;margin-bottom:.9rem">
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.45rem">Convites pendentes</div>
+        <ul class="vlist" id="invPendingList"></ul>
+      </div>
+      <div id="invActiveWrap" style="display:none;margin-bottom:.9rem">
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.45rem">Oficinas com acesso ativo</div>
+        <ul class="vlist" id="invActiveList"></ul>
+      </div>
+      <div id="invHistoryWrap" style="display:none">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleInvHistory()" id="invHistoryToggle" style="width:100%;justify-content:space-between;display:flex">
+          <span>📜 Histórico</span><span id="invHistoryCaret">▾</span>
+        </button>
+        <ul class="vlist" id="invHistoryList" style="display:none;margin-top:.6rem"></ul>
+      </div>
+    </div>
+
     <!-- Self-Service Maintenance -->
     <div class="card" id="selfSvcCard" style="display:none">
       <div class="card-title">
@@ -2200,8 +2223,158 @@ async function loadAllData() {
     renderVehicleList();
     updateMechPanel();
     updateBadge();
+    loadInvitations();
   } catch (err) {
     console.error('Erro ao carregar dados:', err);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  OFICINAS VINCULADAS (convites recebidos pelo proprietário)
+// ═══════════════════════════════════════════════════════════════
+async function loadInvitations() {
+  const card = document.getElementById('invitationsCard');
+  if (!card) return;
+  // Só owners veem essa seção
+  if (!state.currentUser || state.currentUser.role === 'shop') {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  try {
+    const list = await apiFetch('/invitations/received');
+    renderInvitations(Array.isArray(list) ? list : []);
+  } catch (err) {
+    console.error('Erro ao carregar convites:', err);
+  }
+}
+
+function fmtInvDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('pt-BR');
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function renderInvitations(list) {
+  const pending  = list.filter(i => i.status === 'pending');
+  const active   = list.filter(i => i.status === 'accepted');
+  const history  = list.filter(i => i.status === 'rejected' || i.status === 'revoked');
+
+  const badge = document.getElementById('invPendingBadge');
+  if (pending.length > 0) {
+    badge.textContent = pending.length;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  const empty = document.getElementById('invEmpty');
+  const allEmpty = pending.length === 0 && active.length === 0 && history.length === 0;
+  empty.style.display = allEmpty ? '' : 'none';
+
+  // Pendentes
+  const pendWrap = document.getElementById('invPendingWrap');
+  const pendList = document.getElementById('invPendingList');
+  if (pending.length > 0) {
+    pendWrap.style.display = '';
+    pendList.innerHTML = pending.map(i => `
+      <li style="padding:.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem">
+        <div style="font-weight:700">${escapeHtml(i.shop_name || 'Oficina')}</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Enviado em ${fmtInvDate(i.created_at)}</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="acceptInvitation(${i.id})">✓ Aceitar</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectInvitation(${i.id})">✕ Recusar</button>
+        </div>
+      </li>
+    `).join('');
+  } else {
+    pendWrap.style.display = 'none';
+    pendList.innerHTML = '';
+  }
+
+  // Ativos
+  const actWrap = document.getElementById('invActiveWrap');
+  const actList = document.getElementById('invActiveList');
+  if (active.length > 0) {
+    actWrap.style.display = '';
+    actList.innerHTML = active.map(i => `
+      <li style="padding:.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700">${escapeHtml(i.shop_name || 'Oficina')}</div>
+          ${i.phone ? `<div style="font-size:.78rem;color:var(--muted)">${escapeHtml(i.phone)}</div>` : ''}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="revokeInvitation(${i.id})">Revogar acesso</button>
+      </li>
+    `).join('');
+  } else {
+    actWrap.style.display = 'none';
+    actList.innerHTML = '';
+  }
+
+  // Histórico
+  const hisWrap = document.getElementById('invHistoryWrap');
+  const hisList = document.getElementById('invHistoryList');
+  if (history.length > 0) {
+    hisWrap.style.display = '';
+    hisList.innerHTML = history.map(i => {
+      const statusTxt = i.status === 'rejected' ? 'Recusado' : 'Revogado';
+      const color = i.status === 'rejected' ? '#b45309' : '#991b1b';
+      return `
+        <li style="padding:.55rem .7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem">
+          <div style="flex:1;min-width:0;font-weight:600">${escapeHtml(i.shop_name || 'Oficina')}</div>
+          <span style="font-size:.72rem;font-weight:700;color:${color}">${statusTxt}</span>
+        </li>
+      `;
+    }).join('');
+  } else {
+    hisWrap.style.display = 'none';
+    hisList.innerHTML = '';
+  }
+}
+
+function toggleInvHistory() {
+  const list = document.getElementById('invHistoryList');
+  const caret = document.getElementById('invHistoryCaret');
+  const open = list.style.display === 'none';
+  list.style.display = open ? '' : 'none';
+  caret.textContent = open ? '▴' : '▾';
+}
+
+async function acceptInvitation(id) {
+  try {
+    await apiFetch('/invitations/' + id + '/accept', { method: 'PATCH' });
+    await loadInvitations();
+    showToast('Oficina autorizada com sucesso');
+  } catch (err) {
+    showToast('Erro ao aceitar convite: ' + (err.message || 'Tente novamente'));
+  }
+}
+
+async function rejectInvitation(id) {
+  try {
+    await apiFetch('/invitations/' + id + '/reject', { method: 'PATCH' });
+    await loadInvitations();
+    showToast('Convite recusado');
+  } catch (err) {
+    showToast('Erro ao recusar convite: ' + (err.message || 'Tente novamente'));
+  }
+}
+
+async function revokeInvitation(id) {
+  if (!window.confirm('Deseja realmente revogar o acesso desta oficina?')) return;
+  try {
+    await apiFetch('/invitations/' + id, { method: 'DELETE' });
+    await loadInvitations();
+    showToast('Acesso da oficina revogado');
+  } catch (err) {
+    showToast('Erro ao revogar acesso: ' + (err.message || 'Tente novamente'));
   }
 }
 
