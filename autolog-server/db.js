@@ -127,7 +127,16 @@ function runMigrations(db) {
     if (!/duplicate column name/i.test(err.message)) throw err;
   }
 
-  // 4. Tabela de convites oficina → proprietário
+  // 4. Dados pessoais do proprietário em users (full_name, phone, cpf)
+  for (const col of ['full_name TEXT', 'phone TEXT', 'cpf TEXT']) {
+    try {
+      db.exec(`ALTER TABLE users ADD COLUMN ${col}`);
+    } catch (err) {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    }
+  }
+
+  // 5. Tabela de convites oficina → proprietário
   db.exec(`
     CREATE TABLE IF NOT EXISTS shop_invitations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

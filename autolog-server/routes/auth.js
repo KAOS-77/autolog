@@ -19,7 +19,7 @@ function generateToken(user) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, full_name, phone, cpf } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
@@ -27,6 +27,14 @@ router.post('/register', async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
+    }
+
+    if (!full_name || !String(full_name).trim()) {
+      return res.status(400).json({ error: 'Nome completo é obrigatório' });
+    }
+
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ error: 'Telefone é obrigatório' });
     }
 
     const db = getDb();
@@ -38,11 +46,21 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    const result = db.prepare(
-      "INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'owner')"
-    ).run(email, passwordHash);
+    const fullNameClean = String(full_name).trim();
+    const phoneClean = String(phone).trim();
+    const cpfClean = cpf ? String(cpf).trim() : null;
 
-    const user = { id: result.lastInsertRowid, email, role: 'owner' };
+    const result = db.prepare(
+      "INSERT INTO users (email, password_hash, role, full_name, phone, cpf) VALUES (?, ?, 'owner', ?, ?, ?)"
+    ).run(email, passwordHash, fullNameClean, phoneClean, cpfClean);
+
+    const user = {
+      id: result.lastInsertRowid,
+      email,
+      role: 'owner',
+      full_name: fullNameClean,
+      phone: phoneClean
+    };
     const token = generateToken(user);
 
     res.status(201).json({ token, user });
@@ -139,7 +157,16 @@ router.post('/login', async (req, res) => {
     const role = user.role || 'owner';
     const token = generateToken({ id: user.id, email: user.email, role });
 
-    res.json({ token, user: { id: user.id, email: user.email, role } });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role,
+        full_name: user.full_name || null,
+        phone: user.phone || null
+      }
+    });
   } catch (err) {
     console.error('Erro no login:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });

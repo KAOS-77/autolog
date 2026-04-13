@@ -281,9 +281,12 @@ textarea{resize:vertical;min-height:72px}
 
     <!-- Register Form Proprietário -->
     <div id="authRegisterForm" style="display:none">
-      <div class="fg"><label for="authRegEmail">Email</label><input id="authRegEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
-      <div class="fg"><label for="authRegPass">Senha</label><input id="authRegPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
-      <div class="fg"><label for="authRegPass2">Confirmar Senha</label><input id="authRegPass2" type="password" placeholder="Repita a senha" autocomplete="new-password"></div>
+      <div class="fg"><label for="authRegFullName">Nome Completo <span style="color:var(--danger)">*</span></label><input id="authRegFullName" type="text" placeholder="Seu nome completo" autocomplete="name" required></div>
+      <div class="fg"><label for="authRegPhone">Telefone <span style="color:var(--danger)">*</span></label><input id="authRegPhone" type="tel" placeholder="11987654321" maxlength="11" autocomplete="tel" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" required></div>
+      <div class="fg"><label for="authRegCpf">CPF</label><input id="authRegCpf" type="text" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" oninput="maskCpf(this)"></div>
+      <div class="fg"><label for="authRegEmail">Email <span style="color:var(--danger)">*</span></label><input id="authRegEmail" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="fg"><label for="authRegPass">Senha <span style="color:var(--danger)">*</span></label><input id="authRegPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <div class="fg"><label for="authRegPass2">Confirmar Senha <span style="color:var(--danger)">*</span></label><input id="authRegPass2" type="password" placeholder="Repita a senha" autocomplete="new-password"></div>
       <button class="btn btn-primary btn-block" onclick="doRegister()" style="margin-top:.6rem">Criar conta</button>
       <div id="authRegError" class="auth-error"></div>
       <div class="auth-switch">Já tem conta? <a onclick="toggleAuthMode('login')">Entrar</a></div>
@@ -376,22 +379,17 @@ textarea{resize:vertical;min-height:72px}
       </div>
     </div>
 
-    <!-- Owner Info -->
+    <!-- Vehicle Details -->
     <div class="card">
-      <div class="card-title">👤 Informações do Proprietário</div>
+      <div class="card-title">🚗 Dados do Veículo</div>
       <div class="row2">
-        <div class="fg"><label>Nome Completo</label><input id="ownerName" type="text" placeholder="João Silva"></div>
-        <div class="fg"><label>Telefone</label><input id="ownerPhone" type="tel" placeholder="11987654321" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"></div>
-      </div>
-      <div class="row2">
-        <div class="fg"><label>Email</label><input id="ownerEmail" type="email" placeholder="joao@exemplo.com"></div>
         <div class="fg"><label>Chassi / VIN</label><input id="vehicleVin" type="text" placeholder="Chassi 17 dígitos" maxlength="17"></div>
+        <div class="fg"><label>Placa</label><input id="vehiclePlaca" type="text" placeholder="ABC-1234 ou ABC-1B34" maxlength="8" oninput="formatPlaca(this)" style="text-transform:uppercase"></div>
       </div>
       <div class="row2">
-        <div class="fg"><label>Placa</label><input id="vehiclePlaca" type="text" placeholder="ABC-1234 ou ABC-1B34" maxlength="8" oninput="formatPlaca(this)" style="text-transform:uppercase"></div>
         <div class="fg"><label>Quilometragem Atual</label><input id="curMileage" type="text" inputmode="numeric" placeholder="45.000" oninput="fmtKm(this)"></div>
+        <div class="fg"><label>Cor</label><input id="vehColor" type="text" placeholder="ex: Branco Pérola"></div>
       </div>
-      <div class="fg"><label>Cor</label><input id="vehColor" type="text" placeholder="ex: Branco Pérola"></div>
       <div style="display:flex;gap:.65rem;margin-top:.9rem">
         <button class="btn btn-primary" onclick="saveVehicle()">💾 Salvar Veículo</button>
         <button class="btn btn-ghost" onclick="clearOwnerForm()">✕ Limpar</button>
@@ -2018,6 +2016,15 @@ function toggleAuthMode(mode) {
 }
 
 // Máscara CNPJ: 12345678000195 -> 12.345.678/0001-95
+function maskCpf(el) {
+  let v = el.value.replace(/\D/g, '').slice(0, 11);
+  let out = v;
+  if (v.length > 9)      out = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{1,2}).*/, '$1.$2.$3-$4');
+  else if (v.length > 6) out = v.replace(/^(\d{3})(\d{3})(\d{1,3}).*/,        '$1.$2.$3');
+  else if (v.length > 3) out = v.replace(/^(\d{3})(\d{1,3}).*/,               '$1.$2');
+  el.value = out;
+}
+
 function maskCnpj(el) {
   let v = el.value.replace(/\D/g, '').slice(0, 14);
   let out = v;
@@ -2039,6 +2046,19 @@ async function doLogin() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass })
     }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erro'); return d; });
+    // Valida que a aba selecionada ("Proprietário" ou "Oficina") corresponde ao role da conta.
+    const apiRole = data.user && data.user.role;
+    if (apiRole && apiRole !== authRole) {
+      if (authRole === 'owner' && apiRole === 'shop') {
+        errEl.textContent = 'Esta conta pertence a uma oficina. Use a aba Oficina para entrar.';
+      } else if (authRole === 'shop' && apiRole === 'owner') {
+        errEl.textContent = 'Esta conta é de proprietário. Use a aba Proprietário para entrar.';
+      } else {
+        errEl.textContent = 'Tipo de conta incompatível com a aba selecionada.';
+      }
+      errEl.classList.add('show');
+      return;
+    }
     state.token = data.token;
     state.currentUser = data.user;
     localStorage.setItem('autolog_token', data.token);
@@ -2047,9 +2067,11 @@ async function doLogin() {
     // Roteia conforme o role do usuário
     if (data.user && data.user.role === 'shop') {
       showApp();
+      applyRoleUI('shop');
       switchView('shop-dashboard');
     } else {
       showApp();
+      applyRoleUI('owner');
       await loadAllData();
     }
   } catch (err) {
@@ -2063,18 +2085,25 @@ async function doLogin() {
 }
 
 async function doRegister() {
-  const email = $('authRegEmail').value.trim();
-  const pass = $('authRegPass').value;
-  const pass2 = $('authRegPass2').value;
+  const email    = $('authRegEmail').value.trim();
+  const pass     = $('authRegPass').value;
+  const pass2    = $('authRegPass2').value;
+  const fullName = $('authRegFullName') ? $('authRegFullName').value.trim() : '';
+  const phone    = $('authRegPhone') ? $('authRegPhone').value.trim() : '';
+  const cpfInput = $('authRegCpf') ? $('authRegCpf').value.trim() : '';
   const errEl = $('authRegError');
   errEl.classList.remove('show');
   if (!email || !pass) { errEl.textContent = 'Preencha todos os campos.'; errEl.classList.add('show'); return; }
+  if (!fullName) { errEl.textContent = 'Informe seu nome completo.'; errEl.classList.add('show'); return; }
+  if (!phone)    { errEl.textContent = 'Informe seu telefone.'; errEl.classList.add('show'); return; }
   if (pass !== pass2) { errEl.textContent = 'As senhas não coincidem.'; errEl.classList.add('show'); return; }
   if (pass.length < 6) { errEl.textContent = 'A senha deve ter no mínimo 6 caracteres.'; errEl.classList.add('show'); return; }
   try {
+    const body = { email, password: pass, full_name: fullName, phone };
+    if (cpfInput) body.cpf = cpfInput;
     const data = await fetch(API_BASE + '/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass })
+      body: JSON.stringify(body)
     }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erro'); return d; });
     state.token = data.token;
     state.currentUser = data.user;
@@ -2082,6 +2111,7 @@ async function doRegister() {
     localStorage.setItem('autolog_user', JSON.stringify(data.user));
     if (data.user && data.user.role) localStorage.setItem('autolog_role', data.user.role);
     showApp();
+    applyRoleUI(data.user && data.user.role ? data.user.role : 'owner');
     await loadAllData();
     showToast('Conta criada com sucesso!');
   } catch (err) {
@@ -2150,6 +2180,7 @@ async function doRegisterShop() {
     localStorage.setItem('autolog_role', user.role || 'shop');
     showToast('Oficina cadastrada com sucesso!');
     showApp();
+    applyRoleUI('shop');
     switchView('shop-dashboard');
   } catch (err) {
     showToast('Erro ao conectar com o servidor');
@@ -2704,6 +2735,36 @@ function showApp() {
   $('appContainer').style.display = '';
 }
 
+// Ajusta a visibilidade de elementos conforme o role do usuário autenticado.
+// Deve ser chamada SEMPRE após showApp() e após a restauração de sessão.
+function applyRoleUI(role) {
+  const ownerBtn = document.getElementById('navOwnerBtn');
+  const mechBtn  = document.getElementById('navMechBtn');
+  const mechCol  = document.querySelector('section.mech-col');
+  const shopCol  = document.querySelector('section.shop-col');
+
+  if (role === 'shop') {
+    if (ownerBtn) ownerBtn.style.display = 'none';
+    if (mechBtn)  mechBtn.style.display  = 'none';
+    if (mechCol)  mechCol.style.display  = 'none';
+    if (shopCol)  shopCol.style.display  = '';
+    try { switchView('shop-dashboard'); } catch {}
+    return;
+  }
+
+  // role === 'owner' (ou default)
+  // No bootstrap, aguarda currentUser estar restaurado antes de alterar DOM.
+  if (!state.currentUser) return;
+
+  if (ownerBtn) ownerBtn.style.display = '';
+  if (mechBtn)  mechBtn.style.display  = 'none';
+  if (mechCol)  mechCol.style.display  = 'none';
+  if (shopCol)  shopCol.style.display  = 'none';
+  if (state.view === 'mechanic') {
+    try { switchView('owner'); } catch {}
+  }
+}
+
 // ── Data loading ──
 async function loadAllData() {
   try {
@@ -3033,17 +3094,20 @@ function onEspecChange() {
 // ═══════════════════════════════════════════════════════════════
 async function saveVehicle() {
   const marca=$('selMarca').value, modelo=$('selModelo').value,
-        espec=$('selEspec').value, ano=$('selAno').value,
-        ownerName=$('ownerName').value.trim();
+        espec=$('selEspec').value, ano=$('selAno').value;
   if (!marca||!modelo||!espec||!ano) { showToast('⚠️ Selecione a marca, o modelo, a especificação e o ano primeiro.'); return; }
-  if (!ownerName) { showToast('⚠️ Insira o nome do proprietário.'); return; }
+
+  // Proprietário agora vem do perfil do usuário logado (cadastrado na criação da conta).
+  const cu = state.currentUser || {};
+  const ownerName  = (cu.full_name || cu.fullName || '').trim();
+  const ownerPhone = (cu.phone || '').trim();
+  const ownerEmail = (cu.email || '').trim();
 
   const veh = {
     id: uid(), make:marca, model:modelo, trim:espec, year:+ano,
     color: $('vehColor').value.trim(),
     vin: $('vehicleVin').value.trim().toUpperCase(),
-    ownerName, ownerPhone:$('ownerPhone').value.trim(),
-    ownerEmail:$('ownerEmail').value.trim(),
+    ownerName, ownerPhone, ownerEmail,
     plate: $('vehiclePlaca').value.trim(),
     currentMileage: parseInt($('curMileage').value.replace(/\./g,'')) || null,
     addedAt: new Date().toISOString()
@@ -3072,7 +3136,7 @@ function clearOwnerForm() {
     const el = $(id); el.value = '';
     if (id !== 'selMarca') el.disabled = true;
   });
-  ['ownerName','ownerPhone','ownerEmail','vehiclePlaca','vehicleVin','curMileage','vehColor'].forEach(id => $(id).value='');
+  ['vehiclePlaca','vehicleVin','curMileage','vehColor'].forEach(id => { const el = $(id); if (el) el.value=''; });
 }
 
 async function selectVehicle(id) {
@@ -3090,9 +3154,6 @@ async function selectVehicle(id) {
   $('selModelo').value = v.model; onModeloChange();
   $('selEspec').value = v.trim || ''; onEspecChange();
   $('selAno').value = v.year;
-  $('ownerName').value = v.ownerName || '';
-  $('ownerPhone').value = v.ownerPhone || '';
-  $('ownerEmail').value = v.ownerEmail || '';
   $('vehicleVin').value = v.vin || '';
   $('vehiclePlaca').value = v.plate || '';
   $('curMileage').value = v.currentMileage ? v.currentMileage.toLocaleString('pt-BR') : '';
@@ -3755,7 +3816,9 @@ function toggleTheme() {
       state.token = savedToken;
       state.currentUser = JSON.parse(savedUser);
       showApp();
-      if (state.currentUser && state.currentUser.role === 'shop') {
+      const restoredRole = (state.currentUser && state.currentUser.role) || 'owner';
+      applyRoleUI(restoredRole);
+      if (restoredRole === 'shop') {
         switchView('shop-dashboard');
       } else {
         loadAllData();
