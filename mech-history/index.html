@@ -248,6 +248,9 @@ textarea{resize:vertical;min-height:72px}
 .dark-mode .overlay{background:rgba(0,0,0,.7)}
 .dark-mode .viewnav .nav-btn{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
 .dark-mode .viewnav .nav-btn:hover{background:rgba(255,255,255,.1)}
+.dark-mode #shopSvcVehSelected{background:#2d1f6e !important}
+.dark-mode #shopSvcVehDropdown{background:var(--surface) !important;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.dark-mode #shopSvcTotalCost{background:#0f2d1a !important;border-color:#166534 !important}
 #themeToggle{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);color:#cbd5e1;padding:.5rem .95rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
 #themeToggle:hover{background:rgba(255,255,255,.12);color:#fff}
 </style>
@@ -764,7 +767,8 @@ textarea{resize:vertical;min-height:72px}
         <div class="fg">
           <label>Serviços Realizados</label>
           <div class="stypes" id="shopSvcTypeChecks"></div>
-          <input id="shopSvcOther" type="text" placeholder="Outro / descrição personalizada..." style="margin-top:.4rem">
+          <label for="shopSvcOther" style="margin-top:.6rem;display:block">Outro</label>
+          <input id="shopSvcOther" type="text" placeholder="Descreva um serviço não listado acima...">
         </div>
 
         <div class="fg"><label>Notas / Observações</label><textarea id="shopSvcNotes" placeholder="Descrição detalhada do trabalho..."></textarea></div>
@@ -2520,10 +2524,6 @@ async function saveShopProfile() {
 }
 
 // ─── Novo Serviço ──────────────────────────────────────────────
-const SHOP_SVC_TYPES = [
-  'Troca de Óleo','Revisão','Freios','Pneus',
-  'Suspensão','Elétrica','Funilaria/Pintura','Outros'
-];
 let shopSvcSelectedVehicle = null;
 let shopSvcSearchTimer = null;
 
@@ -2535,14 +2535,15 @@ function toggleShopSvcForm() {
   form.classList.toggle('hidden', !willShow);
   if (btn) btn.textContent = willShow ? 'Recolher' : 'Expandir';
   if (willShow) {
-    // Render checkboxes uma vez
+    // Render pills uma vez (mesmo padrão do formulário do proprietário)
     const box = $('shopSvcTypeChecks');
     if (box && !box.children.length) {
-      box.innerHTML = SHOP_SVC_TYPES.map((t,i) =>
-        `<label style="display:inline-flex;align-items:center;gap:.35rem;margin-right:.8rem;margin-bottom:.3rem;font-size:.88rem">
-           <input type="checkbox" value="${escHtml(t)}"> ${escHtml(t)}
-         </label>`
-      ).join('');
+      SVC_TYPES.filter(t => t !== 'Outros').forEach(t => {
+        const label = document.createElement('label');
+        label.className = 'stype-chk';
+        label.innerHTML = `<input type="checkbox" value="${escHtml(t)}"><span class="chk-box"></span> ${escHtml(t)}`;
+        box.appendChild(label);
+      });
     }
     // Data default hoje
     if (!$('shopSvcDate').value) $('shopSvcDate').value = new Date().toISOString().split('T')[0];
@@ -2760,7 +2761,7 @@ function applyRoleUI(role) {
   if (mechBtn)  mechBtn.style.display  = 'none';
   if (mechCol)  mechCol.style.display  = 'none';
   if (shopCol)  shopCol.style.display  = 'none';
-  if (state.view === 'mechanic') {
+  if (state.view !== 'owner') {
     try { switchView('owner'); } catch {}
   }
 }
